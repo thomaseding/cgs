@@ -19,29 +19,29 @@ import Language.Cpp.Lex
 import Language.Cpp.SyntaxToken
 
 
-data Rest
-    = Rest [SyntaxToken]
+data Rest a
+    = Rest [SyntaxToken a]
     | NoRest
 
 
-data PrefixRest
-    = PrefixRest [SyntaxToken] [SyntaxToken]
+data PrefixRest a
+    = PrefixRest [SyntaxToken a] [SyntaxToken a]
     | NoPrefixRest
 
 
-data WildsRest
-    = WildsRest [SyntaxToken] [SyntaxToken]
+data WildsRest a
+    = WildsRest [SyntaxToken a] [SyntaxToken a]
     | NoWildsRest
 
 
-type Matcher a = [SyntaxToken] -> a
+type Matcher a b = [SyntaxToken a] -> b a
 
 
-class Match a where
-    match :: Code -> Matcher a
+class Match a b where
+    match :: Code -> Matcher a b
 
 
-instance Match Rest where
+instance (Eq a) => Match a Rest where
     match code = let
         m = matchPrim code
         in \ts -> case m ts of
@@ -49,7 +49,7 @@ instance Match Rest where
             Just (rest, _) -> Rest rest
 
 
-instance Match PrefixRest where
+instance (Eq a) => Match a PrefixRest where
     match code = let
         m = matchPrim code
         in \ts -> case m ts of
@@ -57,7 +57,7 @@ instance Match PrefixRest where
             Just (rest, st) -> PrefixRest (DL.toList $ matchedEverything st) rest
 
 
-instance Match WildsRest where
+instance (Eq a) => Match a WildsRest where
     match code = let
         m = matchPrim code
         in \ts -> case m ts of
@@ -65,7 +65,7 @@ instance Match WildsRest where
             Just (rest, st) -> WildsRest (DL.toList $ matchedWilds st) rest
 
 
-matchPrim :: Code -> [SyntaxToken] -> Maybe ([SyntaxToken], MatchState)
+matchPrim :: (Eq a) => Code -> [SyntaxToken a] -> Maybe ([SyntaxToken a], MatchState a)
 matchPrim code = let 
     es = lexEquiv code
     initState = MatchState DL.empty DL.empty
@@ -74,13 +74,13 @@ matchPrim code = let
         (Just rest, st) -> Just (rest, st)
 
 
-data MatchState = MatchState {
-      matchedWilds :: DList SyntaxToken
-    , matchedEverything :: DList SyntaxToken
+data MatchState a = MatchState {
+      matchedWilds :: DList (SyntaxToken a)
+    , matchedEverything :: DList (SyntaxToken a)
     }
 
 
-matchM :: [EquivClass SyntaxToken] -> [SyntaxToken] -> State MatchState (Maybe [SyntaxToken])
+matchM :: (Eq a) => [EquivClass (SyntaxToken a)] -> [SyntaxToken a] -> State (MatchState a) (Maybe [SyntaxToken a])
 matchM [] toks = return $ Just toks
 matchM (_:_) [] = return Nothing
 matchM (e:es) (t:ts) = if e == Entity t
@@ -93,7 +93,7 @@ matchM (e:es) (t:ts) = if e == Entity t
     else return Nothing
 
 
-rawEscapes :: [(String, SyntaxToken -> Bool)]
+rawEscapes :: [(String, SyntaxToken a -> Bool)]
 rawEscapes = [
       ("$int", \t -> case t of Integer {} -> True ; _ -> False)
     , ("$flt", \t -> case t of Floating {} -> True ; _ -> False)
@@ -103,7 +103,7 @@ rawEscapes = [
     ]
 
 
-mangledEscapes :: [(String, SyntaxToken -> Bool)]
+mangledEscapes :: [(String, SyntaxToken a -> Bool)]
 mangledEscapes = flip map rawEscapes $ \('$':e, p) -> (mangle e, p)
     where
         mangle = ("eWj" ++)
@@ -123,7 +123,7 @@ mangleEscapes s = case s of
     c : rest -> c : mangleEscapes rest
 
 
-lexEquiv :: Code -> [EquivClass SyntaxToken]
+lexEquiv :: (Eq a) => Code -> [EquivClass (SyntaxToken a)]
 lexEquiv code = case runLexer $ mangleEscapes code of
     Left err -> error $ show err
     Right toks -> flip map toks $ \t -> case t of

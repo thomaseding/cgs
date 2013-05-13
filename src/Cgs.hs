@@ -4,6 +4,7 @@ module Cgs (
 
 
 import Data.Char
+import Hoops
 import Language.Cpp.Lex hiding (main)
 import Language.Cpp.Pretty
 import Language.Cpp.SyntaxToken
@@ -18,21 +19,21 @@ main = do
     toks <- case args of
         [] -> getContents >>= lexCode
         [file] -> readFile file >>= lexCode
-    putStrLn $ pretty $ cgs toks
+    putStrLn $ pretty expandHoops $ cgs toks
 
 
-cgs :: [SyntaxToken] -> [SyntaxToken]
+cgs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
 cgs = removeNopPairs . removeUnusedDefines . removeNopPairs
 
 
-lexCode :: Code -> IO [SyntaxToken]
+lexCode :: Code -> IO [SyntaxToken Hoops]
 lexCode code = do
     case runLexer code of
         Left err -> print err >> exitFailure
         Right ts -> return $ massage ts
 
 
-massage :: [SyntaxToken] -> [SyntaxToken]
+massage :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
 massage = map removeK . filter (/= Comment)
     where
         removeK tok = case tok of
