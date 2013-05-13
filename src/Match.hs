@@ -95,7 +95,8 @@ matchM (e:es) (t:ts) = if e == Entity t
 
 rawEscapes :: [(String, SyntaxToken a -> Bool)]
 rawEscapes = [
-      ("$int", \t -> case t of Integer {} -> True ; _ -> False)
+      ("$any", \_ -> True)
+    , ("$int", \t -> case t of Integer {} -> True ; _ -> False)
     , ("$flt", \t -> case t of Floating {} -> True ; _ -> False)
     , ("$str", \t -> case t of String {} -> True ; _ -> False)
     , ("$var", \t -> case t of Identifier {} -> True ; _ -> False)
@@ -106,7 +107,7 @@ rawEscapes = [
 mangledEscapes :: [(String, SyntaxToken a -> Bool)]
 mangledEscapes = flip map rawEscapes $ \('$':e, p) -> (mangle e, p)
     where
-        mangle = ("eWj" ++)
+        mangle = ("eW7jpK" ++)
 
 
 rawMangleMap :: [(String, String)]
