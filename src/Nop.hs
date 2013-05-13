@@ -18,44 +18,44 @@ import Match
 import UsedKeys
 
 
-defOpenCloseSeg :: Matcher Hoops WildsRest
+defOpenCloseSeg :: Matcher WildsRest
 defOpenCloseSeg = match "DEFINE(HC_Open_Segment($str),$int);HC_Close_Segment();"
 
-openCloseSeg :: Matcher Hoops WildsRest
+openCloseSeg :: Matcher WildsRest
 openCloseSeg = match "HC_Open_Segment($str);HC_Close_Segment();"
 
-openCloseSegByKey :: Matcher Hoops Rest
+openCloseSegByKey :: Matcher Rest
 openCloseSegByKey = match "HC_Open_Segment_By_Key(LOOKUP($int));HC_Close_Segment();"
 
-openCloseGeom :: Matcher Hoops Rest
+openCloseGeom :: Matcher Rest
 openCloseGeom = match "HC_Open_Geometry(LOOKUP($int));HC_Close_Geometry();"
 
-openCloseFace :: Matcher Hoops Rest
+openCloseFace :: Matcher Rest
 openCloseFace = match "HC_Open_Face(LOOKUP($int));HC_Close_Face();"
 
-openCloseVertex :: Matcher Hoops Rest
+openCloseVertex :: Matcher Rest
 openCloseVertex = match "HC_Open_Vertex(LOOKUP($int));HC_Close_Vertex();"
 
-openCloseEdge :: Matcher Hoops Rest
+openCloseEdge :: Matcher Rest
 openCloseEdge = match "HC_Open_Edge(LOOKUP($int,$int));HC_Close_Edge();"
 
-openCloseLod :: Matcher Hoops Rest
+openCloseLod :: Matcher Rest
 openCloseLod = match "HC_Open_LOD(LOOKUP($int));HC_Close_LOD();"
 
-openCloseRegion :: Matcher Hoops Rest
+openCloseRegion :: Matcher Rest
 openCloseRegion = match "HC_Open_Region($int);HC_Close_Region();"
 
-openCloseTrim :: Matcher Hoops Rest
+openCloseTrim :: Matcher Rest
 openCloseTrim = match "HC_Open_Trim($int);HC_Close_Trim();"
 
-defVarByStr :: Matcher Hoops WildsRest
+defVarByStr :: Matcher WildsRest
 defVarByStr = match "DEFINE($var($str),$int)"
 
 
-i :: String -> SyntaxToken a
+i :: String -> SyntaxToken Hoops
 i = Identifier
 
-p :: String -> SyntaxToken a
+p :: String -> SyntaxToken Hoops
 p = Punctuation . punc
 
 
