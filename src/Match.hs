@@ -3,7 +3,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Match (
-      Matcher(..)
+      Match(..)
+    , Matcher
     , Rest(..)
     , PrefixRest(..)
     , WildsRest(..)
@@ -33,34 +34,44 @@ data WildsRest
     | NoWildsRest
 
 
-class Matcher a where
-    match :: Code -> [SyntaxToken] -> a
+type Matcher a = [SyntaxToken] -> a
 
 
-instance Matcher Rest where
-    match code ts = case matchPrim code ts of
-        Nothing -> NoRest
-        Just (rest, _) -> Rest rest
+class Match a where
+    match :: Code -> Matcher a
 
 
-instance Matcher PrefixRest where
-    match code ts = case matchPrim code ts of
-        Nothing -> NoPrefixRest
-        Just (rest, st) -> PrefixRest (DL.toList $ matchedEverything st) rest
+instance Match Rest where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoRest
+            Just (rest, _) -> Rest rest
 
 
-instance Matcher WildsRest where
-    match code ts = case matchPrim code ts of
-        Nothing -> NoWildsRest
-        Just (rest, st) -> WildsRest (DL.toList $ matchedWilds st) rest
+instance Match PrefixRest where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoPrefixRest
+            Just (rest, st) -> PrefixRest (DL.toList $ matchedEverything st) rest
+
+
+instance Match WildsRest where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoWildsRest
+            Just (rest, st) -> WildsRest (DL.toList $ matchedWilds st) rest
 
 
 matchPrim :: Code -> [SyntaxToken] -> Maybe ([SyntaxToken], MatchState)
-matchPrim code ts = case flip runState initState $ matchM (lexEquiv code) ts of
-    (Nothing, _) -> Nothing
-    (Just rest, st) -> Just (rest, st)
-    where
-        initState = MatchState DL.empty DL.empty
+matchPrim code = let 
+    es = lexEquiv code
+    initState = MatchState DL.empty DL.empty
+    in \ts -> case flip runState initState $ matchM es ts of
+        (Nothing, _) -> Nothing
+        (Just rest, st) -> Just (rest, st)
 
 
 data MatchState = MatchState {
@@ -128,6 +139,13 @@ instance (Eq a) => Eq (EquivClass a) where
     Entity x == Pred p = p x
     Pred p == Entity x = p x
     Pred _ == Pred _ = False
+
+
+
+
+
+
+
 
 
 
