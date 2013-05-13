@@ -133,7 +133,9 @@ lexEquiv code = case runLexer $ mangleEscapes code of
         _ -> Entity t
 
 
-data EquivClass = Entity (SyntaxToken Hoops) | Pred (SyntaxToken Hoops -> Bool)
+data EquivClass
+    = Entity (SyntaxToken Hoops)
+    | Pred (SyntaxToken Hoops -> Bool)
 
 
 instance Eq EquivClass where
