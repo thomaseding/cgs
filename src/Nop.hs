@@ -38,6 +38,14 @@ openCloseVertex = match "HC_Open_Vertex(LOOKUP($int));HC_Close_Vertex();"
 openCloseEdge :: Matcher Rest
 openCloseEdge = match "HC_Open_Edge(LOOKUP($int,$int));HC_Close_Edge();"
 
+openCloseLod :: Matcher Rest
+openCloseLod = match "HC_Open_LOD(LOOKUP($int));HC_Close_LOD();"
+
+openCloseRegion :: Matcher Rest
+openCloseRegion = match "HC_Open_Region($int);HC_Close_Region();"
+
+openCloseTrim :: Matcher Rest
+openCloseTrim = match "HC_Open_Trim($int);HC_Close_Trim();"
 
 defVarByStr :: Matcher WildsRest
 defVarByStr = match "DEFINE($var($str),$int)"
@@ -45,7 +53,6 @@ defVarByStr = match "DEFINE($var($str),$int)"
 
 i :: String -> SyntaxToken
 i = Identifier
-
 
 p :: String -> SyntaxToken
 p = Punctuation . punc
@@ -74,6 +81,9 @@ removeNopPairsM (openCloseGeom -> Rest ts) = put Changed >> removeNopPairsM ts
 removeNopPairsM (openCloseFace -> Rest ts) = put Changed >> removeNopPairsM ts
 removeNopPairsM (openCloseVertex -> Rest ts) = put Changed >> removeNopPairsM ts
 removeNopPairsM (openCloseEdge -> Rest ts) = put Changed >> removeNopPairsM ts
+removeNopPairsM (openCloseLod -> Rest ts) = put Changed >> removeNopPairsM ts
+removeNopPairsM (openCloseRegion -> Rest ts) = put Changed >> removeNopPairsM ts
+removeNopPairsM (openCloseTrim -> Rest ts) = put Changed >> removeNopPairsM ts
 removeNopPairsM (t:ts) = fmap (t :) $ removeNopPairsM ts
 removeNopPairsM [] = return []
 
