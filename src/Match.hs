@@ -23,16 +23,19 @@ import Language.Cpp.SyntaxToken
 data Rest
     = Rest [SyntaxToken Hoops]
     | NoRest
+    deriving (Show)
 
 
 data PrefixRest
     = PrefixRest [SyntaxToken Hoops] [SyntaxToken Hoops]
     | NoPrefixRest
+    deriving (Show)
 
 
 data WildsRest
     = WildsRest [SyntaxToken Hoops] [SyntaxToken Hoops]
     | NoWildsRest
+    deriving (Show)
 
 
 type Matcher a = [SyntaxToken Hoops] -> a
@@ -84,28 +87,55 @@ data MatchState = MatchState {
 matchM :: [EquivClass] -> [SyntaxToken Hoops] -> State MatchState (Maybe [SyntaxToken Hoops])
 matchM [] toks = return $ Just toks
 matchM (_:_) [] = return Nothing
-matchM (e:es) (t:ts) = if e == Entity t
-    then do
-        modify $ \st -> st { matchedEverything = matchedEverything st `DL.snoc` t }
-        case e of
-            Pred {} -> modify $ \st -> st { matchedWilds = matchedWilds st `DL.snoc` t }
-            _ -> return ()
-        matchM es ts
-    else return Nothing
+matchM (e:es) (t:ts) = case e of
+    Entity t' -> if t == t'
+        then do
+            modify $ \st -> st { matchedEverything = matchedEverything st `DL.snoc` t }
+            matchM es ts
+        else return Nothing
+    Pred p -> case p t of
+        Fail -> return Nothing
+        Consume -> do
+            modify $ \st -> st {
+                  matchedEverything = matchedEverything st `DL.snoc` t
+                , matchedWilds = matchedWilds st `DL.snoc` t
+                }
+            matchM es ts
+        NoConsume -> matchM es (t:ts)
+        Continue p' -> do
+            modify $ \st -> st {
+                  matchedEverything = matchedEverything st `DL.snoc` t
+                , matchedWilds = matchedWilds st `DL.snoc` t
+                }
+            matchM (Pred p':es) ts
 
 
-rawEscapes :: [(String, SyntaxToken Hoops -> Bool)]
+argsPred :: Int -> SyntaxToken Hoops -> PredResult
+argsPred balance tok = if balance < 0
+    then Fail
+    else case tok of
+        Punctuation p -> case unpunc p of
+            "(" -> Continue $ argsPred (balance + 1)
+            ")" -> if balance == 0
+                then NoConsume
+                else Continue $ argsPred (balance - 1)
+            _ -> Continue $ argsPred balance
+        _ -> Continue $ argsPred balance
+
+
+rawEscapes :: [(String, SyntaxToken Hoops -> PredResult)]
 rawEscapes = [
-      ("$any", \_ -> True)
-    , ("$int", \t -> case t of Integer {} -> True ; _ -> False)
-    , ("$flt", \t -> case t of Floating {} -> True ; _ -> False)
-    , ("$str", \t -> case t of String {} -> True ; _ -> False)
-    , ("$var", \t -> case t of Identifier {} -> True ; _ -> False)
-    , ("$num", \t -> case t of Integer {} -> True ; Floating {} -> True ; _ -> False)
+      ("$any", \_ -> Consume)
+    , ("$int", \t -> case t of Integer {} -> Consume ; _ -> Fail)
+    , ("$flt", \t -> case t of Floating {} -> Consume ; _ -> Fail)
+    , ("$str", \t -> case t of String {} -> Consume ; _ -> Fail)
+    , ("$var", \t -> case t of Identifier {} -> Consume ; _ -> Fail)
+    , ("$num", \t -> case t of Integer {} -> Consume ; Floating {} -> Consume ; _ -> Fail)
+    , ("$args", argsPred 0)
     ]
 
 
-mangledEscapes :: [(String, SyntaxToken Hoops -> Bool)]
+mangledEscapes :: [(String, SyntaxToken Hoops -> PredResult)]
 mangledEscapes = flip map rawEscapes $ \('$':e, p) -> (mangle e, p)
     where
         mangle = ("eW7jpK" ++)
@@ -119,6 +149,9 @@ mangleEscapes :: String -> String
 mangleEscapes s = case s of
     "" -> ""
     '$':'$' : rest -> '$' : mangleEscapes rest
+    '$':'a':'r':'g':'s' : rest -> case lookup "$args" rawMangleMap of
+        Nothing -> '$' : mangleEscapes ("$args"++rest)
+        Just mangled -> mangled ++ mangleEscapes rest
     '$':r:a:w : rest -> case lookup ['$',r,a,w] rawMangleMap of
         Nothing -> '$' : mangleEscapes (r:a:w:rest)
         Just mangled -> mangled ++ mangleEscapes rest
@@ -133,16 +166,18 @@ lexEquiv code = case runLexer $ mangleEscapes code of
         _ -> Entity t
 
 
+data PredResult
+    = Fail
+    | Consume
+    | NoConsume
+    | Continue (SyntaxToken Hoops -> PredResult)
+
+
 data EquivClass
     = Entity (SyntaxToken Hoops)
-    | Pred (SyntaxToken Hoops -> Bool)
+    | Pred (SyntaxToken Hoops -> PredResult)
 
 
-instance Eq EquivClass where
-    Entity x == Entity y = x == y
-    Entity x == Pred p = p x
-    Pred p == Entity x = p x
-    Pred _ == Pred _ = False
 
 
 
