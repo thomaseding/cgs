@@ -8,6 +8,7 @@ module Match (
     , Rest(..)
     , PrefixRest(..)
     , WildsRest(..)
+    , PrefixWildsRest(..)
     ) where
 
 
@@ -35,6 +36,12 @@ data PrefixRest
 data WildsRest
     = WildsRest [SyntaxToken Hoops] [SyntaxToken Hoops]
     | NoWildsRest
+    deriving (Show)
+
+
+data PrefixWildsRest
+    = PrefixWildsRest [SyntaxToken Hoops] [SyntaxToken Hoops] [SyntaxToken Hoops]
+    | NoPrefixWildsRest
     deriving (Show)
 
 
@@ -67,6 +74,14 @@ instance Match WildsRest where
         in \ts -> case m ts of
             Nothing -> NoWildsRest
             Just (rest, st) -> WildsRest (DL.toList $ matchedWilds st) rest
+
+
+instance Match PrefixWildsRest where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoPrefixWildsRest
+            Just (rest, st) -> PrefixWildsRest (DL.toList $ matchedEverything st) (DL.toList $ matchedWilds st) rest
 
 
 matchPrim :: Code -> [SyntaxToken Hoops] -> Maybe ([SyntaxToken Hoops], MatchState)

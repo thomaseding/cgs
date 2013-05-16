@@ -48,8 +48,8 @@ openCloseRegion = match "HC_Open_Region($int);HC_Close_Region();"
 openCloseTrim :: Matcher Rest
 openCloseTrim = match "HC_Open_Trim($int);HC_Close_Trim();"
 
-defVarByStr :: Matcher WildsRest
-defVarByStr = match "DEFINE($var($str),$int)"
+defVarByArgs :: Matcher PrefixWildsRest
+defVarByArgs = match "DEFINE($var($args),$int)"
 
 
 i :: String -> SyntaxToken Hoops
@@ -94,12 +94,13 @@ removeUnusedDefines toks = flip runReader (Set.fromList $ usedKeys toks) $ remov
 
 
 removeUnusedDefinesM :: [SyntaxToken Hoops] -> Reader (Set Integer) [SyntaxToken Hoops]
-removeUnusedDefinesM (defVarByStr -> WildsRest [func, seg, key@(Integer keyNum)] rest) = do
+removeUnusedDefinesM (defVarByArgs -> PrefixWildsRest prefix wilds rest) = do
+    let Integer keyNum = last wilds
     used <- asks $ Set.member keyNum
     rest' <- removeUnusedDefinesM rest
     if used
-        then return $ i "DEFINE" : p "(" : func : p "(" : seg : p ")" : p ")" : rest'
-        else return $ func : p "(" : seg : p ")" : rest'
+        then return $ prefix ++ rest'
+        else return $ (init $ init $ init $ drop 2 prefix) ++ rest'
 removeUnusedDefinesM (t:ts) = fmap (t :) $ removeUnusedDefinesM ts
 removeUnusedDefinesM [] = return []
 
