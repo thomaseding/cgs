@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Match (
       Match(..)
@@ -13,9 +14,11 @@ module Match (
 
 
 import Control.Monad.State.Strict
+import Data.Char
 import Data.DList (DList)
 import qualified Data.DList as DL
 import Data.Function
+import Data.List
 import Hoops
 import Language.Cpp.Lex
 import Language.Cpp.SyntaxToken
@@ -164,11 +167,8 @@ mangleEscapes :: String -> String
 mangleEscapes s = case s of
     "" -> ""
     '$':'$' : rest -> '$' : mangleEscapes rest
-    '$':'a':'r':'g':'s' : rest -> case lookup "$args" rawMangleMap of
-        Nothing -> '$' : mangleEscapes ("$args"++rest)
-        Just mangled -> mangled ++ mangleEscapes rest
-    '$':r:a:w : rest -> case lookup ['$',r,a,w] rawMangleMap of
-        Nothing -> '$' : mangleEscapes (r:a:w:rest)
+    '$': (span isAlphaNum -> (raw, rest)) -> case lookup ('$':raw) rawMangleMap of
+        Nothing -> '$' : mangleEscapes (raw ++ rest)
         Just mangled -> mangled ++ mangleEscapes rest
     c : rest -> c : mangleEscapes rest
 
