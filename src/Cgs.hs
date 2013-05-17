@@ -4,6 +4,7 @@ module Cgs (
 
 
 import Data.Char
+import Data.Tagged
 import Hoops
 import Language.Cpp.Lex hiding (main)
 import Language.Cpp.Pretty
@@ -11,6 +12,7 @@ import Language.Cpp.SyntaxToken
 import Nop
 import System.Environment
 import System.Exit
+import Text.Indent
 
 
 main :: IO ()
@@ -19,7 +21,11 @@ main = do
     toks <- case args of
         [] -> getContents >>= lexCode
         [file] -> readFile file >>= lexCode
-    putStrLn $ pretty expandHoops $ cgs toks
+    putStrLn $ additionalIndent $ pretty expandHoops $ cgs toks
+
+
+additionalIndent :: String -> String
+additionalIndent = untag . (indent KeepOldTabs :: String -> Tagged CodeGen String)
 
 
 cgs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
