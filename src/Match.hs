@@ -8,6 +8,7 @@ module Match (
     , Matcher
     , Rest(..)
     , PrefixRest(..)
+    , PrefixWilds(..)
     , WildsRest(..)
     , PrefixWildsRest(..)
     ) where
@@ -36,6 +37,11 @@ data PrefixRest
     deriving (Show)
 
 
+data PrefixWilds
+    = PrefixWilds [SyntaxToken Hoops] [SyntaxToken Hoops]
+    | NoPrefixWilds
+
+
 data WildsRest
     = WildsRest [SyntaxToken Hoops] [SyntaxToken Hoops]
     | NoWildsRest
@@ -55,6 +61,25 @@ class Match a where
     match :: Code -> Matcher a
 
 
+data Detailed a
+    = Lit a
+    | Wild Int a
+    deriving (Show)
+
+
+data DetailedRest
+    = DetailedRest [Detailed (SyntaxToken Hoops)] [SyntaxToken Hoops]
+    | NoDetailedRest
+
+
+instance Match DetailedRest where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoDetailedRest
+            Just (rest, st) -> DetailedRest (DL.toList $ details st) rest
+
+
 instance Match Rest where
     match code = let
         m = matchPrim code
@@ -68,7 +93,15 @@ instance Match PrefixRest where
         m = matchPrim code
         in \ts -> case m ts of
             Nothing -> NoPrefixRest
-            Just (rest, st) -> PrefixRest (DL.toList $ matchedEverything st) rest
+            Just (rest, st) -> PrefixRest (DL.toList $ everything st) rest
+
+
+instance Match PrefixWilds where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoPrefixWilds
+            Just (_, st) -> PrefixWilds (DL.toList $ everything st) (DL.toList $ wilds st)
 
 
 instance Match WildsRest where
@@ -76,7 +109,7 @@ instance Match WildsRest where
         m = matchPrim code
         in \ts -> case m ts of
             Nothing -> NoWildsRest
-            Just (rest, st) -> WildsRest (DL.toList $ matchedWilds st) rest
+            Just (rest, st) -> WildsRest (DL.toList $ wilds st) rest
 
 
 instance Match PrefixWildsRest where
@@ -84,21 +117,23 @@ instance Match PrefixWildsRest where
         m = matchPrim code
         in \ts -> case m ts of
             Nothing -> NoPrefixWildsRest
-            Just (rest, st) -> PrefixWildsRest (DL.toList $ matchedEverything st) (DL.toList $ matchedWilds st) rest
+            Just (rest, st) -> PrefixWildsRest (DL.toList $ everything st) (DL.toList $ wilds st) rest
 
 
 matchPrim :: Code -> [SyntaxToken Hoops] -> Maybe ([SyntaxToken Hoops], MatchState)
 matchPrim code = let 
     es = lexEquiv code
-    initState = MatchState DL.empty DL.empty
+    initState = MatchState 0 DL.empty DL.empty DL.empty
     in \ts -> case flip runState initState $ matchM es ts of
         (Nothing, _) -> Nothing
         (Just rest, st) -> Just (rest, st)
 
 
 data MatchState = MatchState {
-      matchedWilds :: DList (SyntaxToken Hoops)
-    , matchedEverything :: DList (SyntaxToken Hoops)
+      wildIndex :: !Int
+    , details :: DList (Detailed (SyntaxToken Hoops))
+    , wilds :: DList (SyntaxToken Hoops)
+    , everything :: DList (SyntaxToken Hoops)
     }
 
 
@@ -108,22 +143,31 @@ matchM (_:_) [] = return Nothing
 matchM (e:es) (t:ts) = case e of
     Entity t' -> if t == t'
         then do
-            modify $ \st -> st { matchedEverything = matchedEverything st `DL.snoc` t }
+            modify $ \st -> st {
+                  details = details st `DL.snoc` Lit t
+                , everything = everything st `DL.snoc` t
+                }
             matchM es ts
         else return Nothing
     Pred p -> case p t of
         Fail -> return Nothing
         Consume -> do
+            wildIdx <- gets wildIndex
             modify $ \st -> st {
-                  matchedEverything = matchedEverything st `DL.snoc` t
-                , matchedWilds = matchedWilds st `DL.snoc` t
+                  wildIndex = wildIndex st + 1
+                , details = details st `DL.snoc` Wild wildIdx t
+                , everything = everything st `DL.snoc` t
+                , wilds = wilds st `DL.snoc` t
                 }
             matchM es ts
         NoConsume -> matchM es (t:ts)
         Continue p' -> do
+            wildIdx <- gets wildIndex
             modify $ \st -> st {
-                  matchedEverything = matchedEverything st `DL.snoc` t
-                , matchedWilds = matchedWilds st `DL.snoc` t
+                  wildIndex = wildIndex st + 1
+                , details = details st `DL.snoc` Wild wildIdx t
+                , everything = everything st `DL.snoc` t
+                , wilds = wilds st `DL.snoc` t
                 }
             matchM (Pred p':es) ts
 
