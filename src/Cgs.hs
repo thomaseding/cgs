@@ -6,9 +6,9 @@ module Cgs (
 import Data.Char
 import Data.Tagged
 import Hoops
-import Language.Cpp.Lex hiding (main)
 import Language.Cpp.Pretty
 import Language.Cpp.SyntaxToken
+import Lex
 import Nop
 import System.Environment
 import System.Exit
@@ -36,17 +36,8 @@ lexCode :: Code -> IO [SyntaxToken Hoops]
 lexCode code = do
     case runLexer code of
         Left err -> print err >> exitFailure
-        Right ts -> return $ massage ts
+        Right ts -> return ts
 
-
-massage :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
-massage = map removeK . filter (/= Comment)
-    where
-        removeK tok = case tok of
-            Identifier ('H':'C':'_':'K':c:cs) -> if isUpper c
-                then Identifier $ "HC_" ++ [c] ++ cs
-                else tok
-            _ -> tok
 
 
 

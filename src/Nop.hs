@@ -19,28 +19,28 @@ import UsedKeys
 
 
 defOpenCloseSeg :: Matcher WildsRest
-defOpenCloseSeg = match "DEFINE(HC_Open_Segment($str),$int);HC_Close_Segment();"
+defOpenCloseSeg = match "DEFINE(HC_Open_Segment($str),$key);HC_Close_Segment();"
 
 openCloseSeg :: Matcher WildsRest
 openCloseSeg = match "HC_Open_Segment($str);HC_Close_Segment();"
 
 openCloseSegByKey :: Matcher Rest
-openCloseSegByKey = match "HC_Open_Segment_By_Key(LOOKUP($int));HC_Close_Segment();"
+openCloseSegByKey = match "HC_Open_Segment_By_Key(LOOKUP($key));HC_Close_Segment();"
 
 openCloseGeom :: Matcher Rest
-openCloseGeom = match "HC_Open_Geometry(LOOKUP($int));HC_Close_Geometry();"
+openCloseGeom = match "HC_Open_Geometry(LOOKUP($key));HC_Close_Geometry();"
 
 openCloseFace :: Matcher Rest
-openCloseFace = match "HC_Open_Face(LOOKUP($int));HC_Close_Face();"
+openCloseFace = match "HC_Open_Face($int);HC_Close_Face();"
 
 openCloseVertex :: Matcher Rest
-openCloseVertex = match "HC_Open_Vertex(LOOKUP($int));HC_Close_Vertex();"
+openCloseVertex = match "HC_Open_Vertex($int);HC_Close_Vertex();"
 
 openCloseEdge :: Matcher Rest
-openCloseEdge = match "HC_Open_Edge(LOOKUP($int,$int));HC_Close_Edge();"
+openCloseEdge = match "HC_Open_Edge($int,$int);HC_Close_Edge();"
 
 openCloseLod :: Matcher Rest
-openCloseLod = match "HC_Open_LOD(LOOKUP($int));HC_Close_LOD();"
+openCloseLod = match "HC_Open_LOD(LOOKUP($key));HC_Close_LOD();"
 
 openCloseRegion :: Matcher Rest
 openCloseRegion = match "HC_Open_Region($int);HC_Close_Region();"
@@ -49,7 +49,7 @@ openCloseTrim :: Matcher Rest
 openCloseTrim = match "HC_Open_Trim($int);HC_Close_Trim();"
 
 defVarByArgs :: Matcher PrefixWildsRest
-defVarByArgs = match "DEFINE($var($args),$int)"
+defVarByArgs = match "DEFINE($var($args),$key)"
 
 
 i :: String -> SyntaxToken Hoops
@@ -93,10 +93,10 @@ removeUnusedDefines :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
 removeUnusedDefines toks = flip runReader (Set.fromList $ usedKeys toks) $ removeUnusedDefinesM toks
 
 
-removeUnusedDefinesM :: [SyntaxToken Hoops] -> Reader (Set Integer) [SyntaxToken Hoops]
+removeUnusedDefinesM :: [SyntaxToken Hoops] -> Reader (Set Key) [SyntaxToken Hoops]
 removeUnusedDefinesM (defVarByArgs -> PrefixWildsRest prefix wilds rest) = do
-    let Integer keyNum = last wilds
-    used <- asks $ Set.member keyNum
+    let Ext (Key key) = last wilds
+    used <- asks $ Set.member key
     rest' <- removeUnusedDefinesM rest
     if used
         then return $ prefix ++ rest'

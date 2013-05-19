@@ -9,10 +9,12 @@ module Hoops (
 
 
 import Language.Cpp.SyntaxToken
+import SegPath
 
 
 data Hoops
     = Key Key
+    | SegPath SegPath
     deriving (Show, Eq, Ord)
 
 
@@ -21,6 +23,7 @@ expandHoops hoops = case hoops of
     Key key -> case key of
         Key1 x -> [Integer x]
         Key2 x y -> [Integer x, Punctuation $ punc ",", Integer y]
+    SegPath s -> [String $ toString s]
 
 
 data Key

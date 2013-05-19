@@ -12,9 +12,9 @@ hlookup :: [SyntaxToken Hoops]
 hlookup = [Identifier "LOOKUP", Punctuation $ punc "("]
 
 
-usedKeys :: [SyntaxToken Hoops] -> [Integer]
+usedKeys :: [SyntaxToken Hoops] -> [Key]
 usedKeys tokens = case stripPrefix hlookup tokens of
-    Just (Integer n : rest) -> n : usedKeys rest
+    Just (Ext (Key key) : rest) -> key : usedKeys rest
     Nothing -> case tokens of
         _ : ts -> usedKeys ts
         [] -> []
