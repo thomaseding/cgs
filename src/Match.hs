@@ -11,6 +11,8 @@ module Match (
     , PrefixWilds(..)
     , WildsRest(..)
     , PrefixWildsRest(..)
+    , Detailed(..)
+    , DetailedRest(..)
     ) where
 
 
@@ -193,6 +195,7 @@ rawEscapes = [
     , ("$str", \t -> case t of String {} -> Consume ; _ -> Fail)
     , ("$var", \t -> case t of Identifier {} -> Consume ; _ -> Fail)
     , ("$num", \t -> case t of Integer {} -> Consume ; Floating {} -> Consume ; _ -> Fail)
+    , ("$key", \t -> case t of Ext (Key {}) -> Consume ; _ -> Fail)
     , ("$args", argsPred 0)
     ]
 
@@ -219,7 +222,7 @@ mangleEscapes s = case s of
 
 lexEquiv :: Code -> [EquivClass]
 lexEquiv code = case runLexer $ mangleEscapes code of
-    Left err -> error $ show err
+    Left err -> error $ show (code, err)
     Right toks -> flip map toks $ \t -> case t of
         Identifier name -> maybe (Entity t) Pred $ lookup name mangledEscapes
         _ -> Entity t
