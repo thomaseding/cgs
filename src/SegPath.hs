@@ -25,7 +25,7 @@ data SegPath
     deriving (Show, Eq, Ord)
 
 
-type Key = Integer
+type Key = String
 
 
 data AbsoluteType
@@ -50,7 +50,7 @@ data PathPart
 
 mkSegPath :: String -> SegPath
 mkSegPath str = case runParseSegPath str of
-    Left err -> error $ show err
+    Left err -> error $ show (str, err)
     Right sp -> sp
 
 
@@ -198,7 +198,14 @@ parseByAlias = do
 
 
 parseByKey :: SegParser AbsoluteType
-parseByKey = parserZero -- TODO
+parseByKey = do
+    char '@'
+    key <- fmap (map toLower) $ many1 hexDigit
+    hasKids <- optionBool $ char '/'
+    if hasKids
+        then fmap (ByKey key) parsePathParts
+        else return $ ByKey key []
+
 
 
 parsePathParts :: SegParser [PathPart]
@@ -222,7 +229,7 @@ parseName = fmap (Name . concat) $ many1 $ parseUnquoted <|> parseQuoted '\'' <|
 
 
 parseUnquoted :: SegParser String
-parseUnquoted = fmap (map toLower . unwords . words) $ many1 $ satisfy $ \c -> isAlphaNum c || c `elem` " #+-$_."
+parseUnquoted = fmap (map toLower . unwords . words) $ many1 $ satisfy $ \c -> isAlphaNum c || c `elem` " #+-$_.:"
 
 
 parseQuoted :: Char -> SegParser String
