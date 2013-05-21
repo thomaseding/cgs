@@ -74,44 +74,45 @@ segPaths = let
         in \toks -> case toks of
             [] -> []
             t : ts -> case m toks of
-                NoWildsRest -> t : qSet ts
-                WildsRest [Identifier var, String str] rest -> if any (`isPrefixOf` var) ["HC_QSet_", "HC_QUnSet_"]
+                NoCapturesRest -> t : qSet ts
+                CapturesRest [Identifier var, String str] rest -> if any (`isPrefixOf` var) ["HC_QSet_", "HC_QUnSet_"]
                     then Identifier var : p "(" : Ext (SegPath $ mkSegPath str) : qSet rest
                     else t : qSet ts
     in \ts -> qSet $ go matchers ts
 
 
+dropEnd :: Int -> [a] -> [a]
+dropEnd n xs = take (length xs - n) xs
+
+
 keys :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
-keys ts0 = let
-    continue = case ts0 of
+keys = let
+    lookup1 = match "LOOKUP($int)"
+    lookup2 = match "LOOKUP($int,$int)"
+    define1 = match "DEFINE($!var($!args),$int)"
+    define2 = match "DEFINE($!var($!args),$int,$int)"
+    mkKey' x my = mkKey (x, my `asTypeOf` Just x)
+    mkLookup k1 mK2 = i "LOOKUP" : p "(" : Ext (Key $ mkKey' k1 mK2) : p ")" : []
+    mkDefine prefix k1 mK2 = let
+        dropAmount = maybe 2 (const 4) mK2
+        in dropEnd dropAmount prefix ++ [Ext $ Key $ mkKey' k1 mK2, p ")"]
+    in \toks -> case toks of
+        (lookup1 -> CapturesRest [Integer k] rest) -> mkLookup k Nothing ++ keys rest
+        (lookup2 -> CapturesRest [Integer k1, Integer k2] rest) -> mkLookup k1 (Just k2) ++ keys rest
+        (define1 -> PrefixCapturesRest prefix [Integer k] rest) -> mkDefine prefix k Nothing ++ keys rest
+        (define2 -> PrefixCapturesRest prefix [Integer k1, Integer k2] rest) -> mkDefine prefix k1 (Just k2) ++ keys rest
         t : ts -> t : keys ts
         [] -> []
-    (ts1, name) = case ts0 of
-        Identifier name' : ts -> case name' of
-            "DEFINE" -> (ts, name')
-            "LOOKUP" -> (ts, name')
-            _ -> ([], undefined)
-        _ -> ([], undefined)
-    in case ts1 of
-        (viewpunc -> "(") : ts2 -> case ts2 of
-            Integer x : ts3 -> let
-                mKeyRest = case ts3 of
-                    (viewpunc -> ",") : Integer y : (viewpunc -> ")") : rest -> Just (mkKey (x, y), rest)
-                    (viewpunc -> ")") : rest -> Just (mkKey x, rest)
-                    _ -> Nothing
-                in case mKeyRest of
-                    Just (key, rest) -> i name : p "(" : Ext (Key key) : p ")" : keys rest
-                    Nothing -> continue
-            _ -> continue
-        _ -> continue
 
 
 removeK :: SyntaxToken Hoops -> SyntaxToken Hoops
 removeK tok = case tok of
-    Identifier "HC_KEY" -> tok
-    Identifier ('H':'C':'_':'K':c:cs) -> if isUpper c
-        then Identifier $ "HC_" ++ [c] ++ cs
-        else tok
+    Identifier name -> case name of
+        "HC_KEY" -> tok
+        'H':'C':'_':'K':c:cs -> if isUpper c
+            then Identifier $ "HC_" ++ [c] ++ cs
+            else tok
+        _ -> tok
     _ -> tok
 
 
