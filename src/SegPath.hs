@@ -168,7 +168,10 @@ runParseSegPath s = case trim s of
 
 
 parseSegPath :: SegParser SegPath
-parseSegPath = fmap simplify $ parseRelative <|> parseAbsolute
+parseSegPath = do
+    res <- parseRelative <|> parseAbsolute
+    eof
+    return $ simplify res
 
 
 parseRelative :: SegParser SegPath
@@ -229,7 +232,7 @@ parseName = fmap (Name . concat) $ many1 $ parseUnquoted <|> parseQuoted '\'' <|
 
 
 parseUnquoted :: SegParser String
-parseUnquoted = fmap (map toLower . unwords . words) $ many1 $ satisfy $ \c -> isAlphaNum c || c `elem` " #+-$_.:"
+parseUnquoted = fmap (map toLower . unwords . words) $ many1 $ satisfy $ \c -> isAlphaNum c || c `elem` " #+-$_.:&"
 
 
 parseQuoted :: Char -> SegParser String
