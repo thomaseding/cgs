@@ -21,15 +21,16 @@ data Hoops
 expandHoops :: Hoops -> [SyntaxToken ()]
 expandHoops hoops = case hoops of
     Key key -> case key of
-        Key1 x -> [Integer x]
         Key2 x y -> [Integer x, Punctuation $ punc ",", Integer y]
     SegPath s -> [String $ toString s]
 
 
-data Key
-    = Key1 Integer
-    | Key2 Integer Integer
-    deriving (Show, Eq, Ord)
+data Key = Key2 Integer Integer
+    deriving (Eq, Ord)
+
+
+instance Show Key where
+    show (Key2 x y) = "Key(" ++ show x ++ "," ++ show y ++ ")"
 
 
 class MakeKey a where
@@ -41,18 +42,15 @@ instance MakeKey Key where
 
 
 instance MakeKey Integer where
-    mkKey = Key1
+    mkKey = flip Key2 (-1)
 
 
 instance MakeKey (Integer, Integer) where
-    mkKey (x, y) = case y of
-        -1 -> Key1 x
-        _ -> Key2 x y
+    mkKey = uncurry Key2
 
 
 instance MakeKey (Integer, Maybe Integer) where
-    mkKey (x, my) = case my of
-        Nothing -> Key1 x
-        Just y -> Key2 x y
+    mkKey (x, my) = Key2 x $ maybe (-1) id my
+
 
 
