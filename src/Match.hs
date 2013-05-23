@@ -6,6 +6,7 @@
 module Match (
       Match(..)
     , Matcher
+    , Captures(..)
     , Rest(..)
     , PrefixRest(..)
     , PrefixCaptures(..)
@@ -25,6 +26,12 @@ import Data.List
 import Hoops
 import Language.Cpp.Lex
 import Language.Cpp.SyntaxToken
+
+
+data Captures
+    = Captures [SyntaxToken Hoops]
+    | NoCaptures
+    deriving (Show)
 
 
 data Rest
@@ -74,12 +81,20 @@ data DetailedRest
     | NoDetailedRest
 
 
-instance Match DetailedRest where
+instance Match Bool where
     match code = let
         m = matchPrim code
         in \ts -> case m ts of
-            Nothing -> NoDetailedRest
-            Just (rest, st) -> DetailedRest (DL.toList $ details st) rest
+            Nothing -> False
+            Just _ -> True
+
+
+instance Match Captures where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoCaptures
+            Just (_, st) -> Captures (DL.toList $ captures st)
 
 
 instance Match Rest where
@@ -120,6 +135,14 @@ instance Match PrefixCapturesRest where
         in \ts -> case m ts of
             Nothing -> NoPrefixCapturesRest
             Just (rest, st) -> PrefixCapturesRest (DL.toList $ everything st) (DL.toList $ captures st) rest
+
+
+instance Match DetailedRest where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoDetailedRest
+            Just (rest, st) -> DetailedRest (DL.toList $ details st) rest
 
 
 matchPrim :: Code -> [SyntaxToken Hoops] -> Maybe ([SyntaxToken Hoops], MatchState)
