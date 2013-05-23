@@ -5,6 +5,7 @@ module Cgs (
 
 import Data.Char
 import Data.Tagged
+import ExpandKeys
 import Hoops
 import Language.Cpp.Pretty
 import Language.Cpp.SyntaxToken
@@ -29,7 +30,7 @@ additionalIndent = untag . (indent KeepOldTabs :: String -> Tagged CodeGen Strin
 
 
 cgs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
-cgs = removeNopPairs . removeUnusedDefines . removeNopPairs
+cgs = removeNopPairs . removeUnusedDefines . removeNopPairs . expandKeys
 
 
 lexCode :: Code -> IO [SyntaxToken Hoops]
