@@ -24,6 +24,12 @@ p :: String -> SyntaxToken Hoops
 p = Punctuation . punc
 
 
+merge :: SegPath -> SegPath -> SegPath
+p1 `merge` p2 = if isAbsolute p1
+    then p1 `mappend` p2
+    else p2
+
+
 type Expander = State ExpandState
 
 
@@ -38,13 +44,13 @@ data NonSegKind
     deriving (Show, Eq, Ord)
 
 
-data Close
+data CloseKind
     = CloseSeg
     | CloseNonSeg NonSegKind
     deriving (Show, Eq, Ord)
 
 
-data Open
+data OpenKind
     = OpenSegByPath SegPath
     | OpenSegByKey Key
     | OpenNonSeg NonSegKind
@@ -52,7 +58,7 @@ data Open
 
 
 data ExpandState = ExpandState {
-      openStack :: [Open]
+      openStack :: [OpenKind]
     , keyMap :: Map (Key, Scope) SegPath
     , aliasMap :: Map SegPath SegPath
     , anonymousNames :: [String]
@@ -84,6 +90,21 @@ expandKeysM = let
     --moveByKeyByKey = match "HC_Move_By_Key(LOOKUP($key),LOOKUP($key))"
     --moveSegment = match "HC_Move_Segment($seg,$seg)"
     --renameSegment = match "HC_Rename_Segment($seg,$seg)"
+    pickByFirst xs = case xs of
+        (bool, kind) : rest -> if bool
+            then Just kind
+            else pickByFirst rest
+        [] -> Nothing
+    openNonSeg = let
+        openers = map (\(str, kind) -> (match str, kind)) [
+              ("HC_Open_Geometry", Geometry)
+            ]
+        in \toks -> pickByFirst $ map (\(m, kind) -> (m toks, kind)) openers
+    closeNonSeg = let
+        closers = map (\(str, kind) -> (match str, kind)) [
+              ("HC_Close_Geometry", Geometry)
+            ]
+        in \toks -> pickByFirst $ map (\(m, kind) -> (m toks, kind)) closers
     in \toks -> let
         continue = case toks of
             t : ts -> do
@@ -152,14 +173,29 @@ expandKeysM = let
                                 in do
                                     ts <- expandKeysM rest
                                     return $ expanded ++ ts
+            (openNonSeg -> Just kind) -> do
+                open $ OpenNonSeg kind
+                continue
+            (closeNonSeg -> Just kind) -> do
+                close $ CloseNonSeg kind
+                continue
             _ -> continue
 
 
-open :: Open -> Expander ()
-open kind = modify $ \st -> st { openStack = kind : openStack st }
+open :: OpenKind -> Expander ()
+open kind = case kind of
+    OpenSegByPath path -> do
+        mCurrPath <- currentlyOpenedPath
+        case mCurrPath of
+            Nothing -> modify $ \st -> st { openStack = kind : openStack st }
+            Just currPath -> let
+                path' = currPath `mappend` path
+                kind' = OpenSegByPath path'
+                in modify $ \st -> st { openStack = kind' : openStack st }
+    _ -> modify $ \st -> st { openStack = kind : openStack st }
 
 
-close :: Close -> Expander ()
+close :: CloseKind -> Expander ()
 close closeKind = do
     mOpenKind <- gets $ listToMaybe . openStack
     case mOpenKind of
@@ -212,8 +248,8 @@ recordDef path key scope = let
             then do
                 anonName <- gets $ head . anonymousNames
                 modify $ \st -> st { anonymousNames = tail $ anonymousNames st }
-                return $ currPath `mappend` mkSegPath anonName
-            else return $ currPath `mappend` path
+                return $ currPath `merge` mkSegPath anonName
+            else return $ currPath `merge` path
         modify $ \st -> st {
               keyMap = M.insert (key, scope) path' $ keyMap st
             }
@@ -235,7 +271,7 @@ expandOpenSegmentKeyByKey parentKey childPath = do
     return $ case mParentPath of
         Nothing -> Nothing
         Just parentPath -> let
-            path = parentPath `mappend` childPath
+            path = parentPath `merge` childPath
             in Just $ i "HC_Open_Segment" : p "(" : Ext (SegPath path) : p ")" : []
 
 
