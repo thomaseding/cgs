@@ -197,19 +197,9 @@ open kind = case kind of
 
 close :: CloseKind -> Expander ()
 close closeKind = do
-    mOpenKind <- gets $ listToMaybe . openStack
-    case mOpenKind of
-        Nothing -> return ()
-        Just openKind -> let
-            closeKind' = openKindToCloseKind openKind
-            in if closeKind == closeKind'
-                then pop
-                else popTill
+    let pred = (/= closeKind) . openKindToCloseKind
+    modify $ \st -> st { openStack = drop 1 $ dropWhile pred $ openStack st }
     where
-        pop = modify $ \st -> st { openStack = tail $ openStack st }
-        popTill = let
-            pred = (/= closeKind) . openKindToCloseKind
-            in modify $ \st -> st { openStack = drop 1 $ dropWhile pred $ openStack st }
         openKindToCloseKind openKind = case openKind of
             OpenSegByPath {} -> CloseSeg
             OpenSegByKey {} -> CloseSeg
