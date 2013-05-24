@@ -1,6 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 
-module ExpandKeys (
+module Transform.ExpandKeys (
       expandKeys
     ) where
 
@@ -10,10 +10,9 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
-import Hoops
-import Language.Cpp.SyntaxToken
-import Match
-import SegPath
+import Hoops.Match
+import Hoops.SegPath
+import Hoops.SyntaxToken
 
 
 i :: String -> SyntaxToken Hoops

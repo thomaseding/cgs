@@ -1,6 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 
-module Lex (
+module Hoops.Lex (
       runLexer
     , C.ParseError
     ) where
@@ -9,11 +9,10 @@ module Lex (
 import Control.Monad.State.Strict
 import Data.Char
 import Data.List
-import Hoops
+import Hoops.Match
+import Hoops.SegPath
+import Hoops.SyntaxToken
 import qualified Language.Cpp.Lex as C
-import Language.Cpp.SyntaxToken
-import Match
-import SegPath
 
 
 runLexer :: Code -> Either C.ParseError [SyntaxToken Hoops]

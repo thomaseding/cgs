@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Hoops (
-      Hoops(..)
+module Hoops.SyntaxToken (
+      module Language.Cpp.SyntaxToken
+    , Hoops(..)
     , expandHoops
     , Key
     , MakeKey(..)
@@ -9,7 +10,7 @@ module Hoops (
 
 
 import Language.Cpp.SyntaxToken
-import SegPath
+import Hoops.SegPath
 
 
 data Hoops

@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module SegPath (
+module Hoops.SegPath (
       SegPath
     , mkSegPath
     , toString

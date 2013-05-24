@@ -5,15 +5,14 @@ module Cgs (
 
 import Data.Char
 import Data.Tagged
-import ExpandKeys
-import Hoops
+import Hoops.Lex
+import Hoops.SyntaxToken
 import Language.Cpp.Pretty
-import Language.Cpp.SyntaxToken
-import Lex
-import Nop
 import System.Environment
 import System.Exit
 import Text.Indent
+import Transform.ExpandKeys
+import Transform.Nop
 
 
 main :: IO ()

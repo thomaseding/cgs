@@ -1,11 +1,10 @@
-module UsedKeys (
+module Query.UsedKeys (
       usedKeys
     ) where
 
 
 import Data.List
-import Hoops
-import Language.Cpp.SyntaxToken
+import Hoops.SyntaxToken
 
 
 hlookup :: [SyntaxToken Hoops]

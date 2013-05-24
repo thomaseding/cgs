@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Match (
+module Hoops.Match (
       Match(..)
     , Matcher
     , Captures(..)
@@ -23,9 +23,8 @@ import Data.DList (DList)
 import qualified Data.DList as DL
 import Data.Function
 import Data.List
-import Hoops
+import Hoops.SyntaxToken
 import Language.Cpp.Lex
-import Language.Cpp.SyntaxToken
 
 
 data Captures

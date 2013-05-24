@@ -1,6 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 
-module Nop (
+module Transform.Nop (
       removeNopPairs
     , removeUnusedDefines
     ) where
@@ -11,11 +11,9 @@ import Control.Monad.State.Strict
 import Data.List
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Hoops
-import Language.Cpp.Lex
-import Language.Cpp.SyntaxToken
-import Match
-import UsedKeys
+import Hoops.Match
+import Hoops.SyntaxToken
+import Query.UsedKeys
 
 
 
