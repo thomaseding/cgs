@@ -6,7 +6,6 @@ module Hoops.Lex (
     ) where
 
 
-import Control.Monad.State.Strict
 import Data.Char
 import Data.List
 import Hoops.Match
