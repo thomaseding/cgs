@@ -6,6 +6,7 @@
 module Hoops.Match (
       Match(..)
     , Matcher
+    , Prefix(..)
     , Captures(..)
     , Rest(..)
     , PrefixRest(..)
@@ -25,6 +26,12 @@ import Data.Function
 import Data.List
 import Hoops.SyntaxToken
 import Language.Cpp.Lex
+
+
+data Prefix
+    = Prefix [SyntaxToken Hoops]
+    | NoPrefix
+    deriving (Show)
 
 
 data Captures
@@ -86,6 +93,14 @@ instance Match Bool where
         in \ts -> case m ts of
             Nothing -> False
             Just _ -> True
+
+
+instance Match Prefix where
+    match code = let
+        m = matchPrim code
+        in \ts -> case m ts of
+            Nothing -> NoPrefix
+            Just (_, st) -> Prefix $ DL.toList $ everything st
 
 
 instance Match Captures where
