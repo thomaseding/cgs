@@ -3,7 +3,6 @@ module Cgs (
     ) where
 
 
-import Data.Char
 import Data.Tagged
 import Hoops.Lex
 import Hoops.SyntaxToken
@@ -22,6 +21,7 @@ main = do
     toks <- case args of
         [] -> getContents >>= lexCode
         [file] -> readFile file >>= lexCode
+        _ -> exitFailure
     putStrLn $ additionalIndent $ pretty expandHoops $ cgs toks
 
 

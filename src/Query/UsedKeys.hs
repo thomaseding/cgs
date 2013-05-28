@@ -3,19 +3,21 @@ module Query.UsedKeys (
     ) where
 
 
-import Data.List
+import Control.Exception (assert)
+import Data.List hiding (lookup)
 import Hoops.SyntaxToken
+import Prelude hiding (lookup)
 
 
-hlookup :: [SyntaxToken Hoops]
-hlookup = [Identifier "LOOKUP", Punctuation $ punc "("]
+lookup :: [SyntaxToken Hoops]
+lookup = [Identifier "LOOKUP", Punctuation $ punc "("]
 
 
 usedKeys :: [SyntaxToken Hoops] -> [Key]
-usedKeys tokens = case stripPrefix hlookup tokens of
+usedKeys tokens = case stripPrefix lookup tokens of
     Just (Ext (Key key) : rest) -> key : usedKeys rest
     Nothing -> case tokens of
         _ : ts -> usedKeys ts
         [] -> []
-
+    Just _ -> assert False undefined
 

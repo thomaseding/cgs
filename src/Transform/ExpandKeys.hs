@@ -13,6 +13,7 @@ import Data.Monoid
 import Hoops.Match
 import Hoops.SegPath
 import Hoops.SyntaxToken
+import Prelude hiding (lookup, pred)
 
 
 i :: String -> SyntaxToken Hoops
@@ -223,10 +224,10 @@ close closeKind = do
 
 currentlyOpenedSeg :: Expander (Maybe Segment)
 currentlyOpenedSeg = do
-    mOpen <- gets $ listToMaybe . openStack
-    case mOpen of
+    mOpenItem <- gets $ listToMaybe . openStack
+    case mOpenItem of
         Nothing -> return Nothing
-        Just open -> case open of
+        Just openItem -> case openItem of
             OpenSeg seg -> return $ Just seg
             _ -> return Nothing
 
@@ -243,7 +244,7 @@ currentlyOpenedPath = do
 
 
 lookupPath :: Key -> Expander (Maybe SegPath)
-lookupPath key = do
+lookupPath = \key -> do
     mCurrSeg <- currentlyOpenedSeg
     case mCurrSeg of
         Nothing -> gets $ Map.lookup (key, Global) . keyMap

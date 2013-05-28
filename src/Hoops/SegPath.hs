@@ -192,7 +192,7 @@ parseByRoot = char '/' >> fmap ByRoot parsePathParts
 
 parseByAlias :: SegParser AbsoluteType
 parseByAlias = do
-    char '?'
+    _ <- char '?'
     alias <- parseUnquoted
     hasKids <- optionBool $ char '/'
     if hasKids
@@ -202,7 +202,7 @@ parseByAlias = do
 
 parseByKey :: SegParser AbsoluteType
 parseByKey = do
-    char '@'
+    _ <- char '@'
     key <- fmap (map toLower) $ many1 hexDigit
     hasKids <- optionBool $ char '/'
     if hasKids
@@ -218,7 +218,7 @@ parsePathPart :: SegParser PathPart
 parsePathPart = try dots <|> try parseParent <|> try parseSelf <|> parseChild
     where
         dots = do
-            string ".."
+            _ <- string ".."
             ds <- many1 $ char '.'
             return $ Child $ Name $ ".." ++ ds
 
@@ -237,9 +237,9 @@ parseUnquoted = fmap (map toLower . unwords . words) $ many1 $ satisfy $ \c -> i
 
 parseQuoted :: Char -> SegParser String
 parseQuoted delim = do
-    char delim
+    _ <- char delim
     res <- many $ satisfy (/= delim) <|> try (string [delim, delim] >> return delim)
-    char delim
+    _ <- char delim
     return res
 
 
@@ -249,7 +249,7 @@ parseParent = do
     if done
         then return Parent
         else do
-            string ".."
+            _ <- string ".."
             notFollowedBy $ char '.'
             return Parent
 

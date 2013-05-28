@@ -23,7 +23,6 @@ import Data.Char
 import Data.DList (DList)
 import qualified Data.DList as DL
 import Data.Function
-import Data.List
 import Hoops.SyntaxToken
 import Language.Cpp.Lex
 
@@ -252,13 +251,6 @@ toManglePrefix :: CaptureType -> String
 toManglePrefix mt = case mt of
     Capture -> "eW7jpK"
     NoCapture -> "VMxKy1"
-
-
-fromManglePrefix :: String -> Maybe CaptureType
-fromManglePrefix str
-    | str == toManglePrefix Capture = Just Capture
-    | str == toManglePrefix NoCapture = Just NoCapture
-    | otherwise = Nothing
 
 
 mangledEscapes :: CaptureType -> [(String, SyntaxToken Hoops -> PredResult)]

@@ -6,6 +6,7 @@ module Hoops.Lex (
     ) where
 
 
+import Control.Exception (assert)
 import Data.Char
 import Data.List
 import Hoops.Match
@@ -20,12 +21,6 @@ runLexer = fmap massage . C.runLexer
 
 massage :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
 massage = segPaths . keys . map removeK . filter (/= Comment)
-
-
-viewpunc :: SyntaxToken Hoops -> String
-viewpunc tok = case tok of
-    Punctuation p -> unpunc p
-    _ -> ""
 
 
 i :: String -> SyntaxToken Hoops
@@ -59,6 +54,7 @@ segPaths = let
         Wild idx t -> if idx `elem` idxs
             then Ext $ SegPath $ mkSegPath $ case t of
                 String str -> str
+                _ -> assert False undefined
             else t
     go _ [] = []
     go [] (t:ts) = t : go matchers ts
@@ -76,6 +72,7 @@ segPaths = let
                 CapturesRest [Identifier var, String str] rest -> if any (`isPrefixOf` var) ["HC_QSet_", "HC_QUnSet_"]
                     then Identifier var : p "(" : Ext (SegPath $ mkSegPath str) : qSet rest
                     else t : qSet ts
+                _ -> assert False undefined
     in \ts -> qSet $ go matchers ts
 
 
