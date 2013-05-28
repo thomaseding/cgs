@@ -36,8 +36,8 @@ removeNopPairs toks = case flip runState Unchanged $ removeNopPairsM toks of
 
 removeNopPairsM :: [SyntaxToken Hoops] -> State Status [SyntaxToken Hoops]
 removeNopPairsM = let
-    defOpenCloseSeg = match "DEFINE(HC_Open_Segment($seg),$key);HC_Close_Segment();"
-    openCloseSeg = match "HC_Open_Segment($seg);HC_Close_Segment();"
+    defOpenCloseSeg = match "DEFINE(HC_Open_Segment($path),$key);HC_Close_Segment();"
+    openCloseSeg = match "HC_Open_Segment($path);HC_Close_Segment();"
     openCloseSegByKey = match "HC_Open_Segment_By_Key(LOOKUP($key));HC_Close_Segment();"
     openCloseGeom = match "HC_Open_Geometry(LOOKUP($key));HC_Close_Geometry();"
     openCloseFace = match "HC_Open_Face($int);HC_Close_Face();"

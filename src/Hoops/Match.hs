@@ -222,7 +222,7 @@ rawEscapes = [
     , ("var", \t -> case t of Identifier {} -> Consume ; _ -> Fail)
     , ("num", \t -> case t of Integer {} -> Consume ; Floating {} -> Consume ; _ -> Fail)
     , ("key", \t -> case t of Ext (Key {}) -> Consume ; _ -> Fail)
-    , ("seg", \t -> case t of Ext (SegPath {}) -> Consume ; _ -> Fail)
+    , ("path", \t -> case t of Ext (SegPath {}) -> Consume ; _ -> Fail)
     , ("args", argsPred 0)
     ]
 

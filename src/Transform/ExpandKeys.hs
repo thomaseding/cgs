@@ -85,18 +85,18 @@ expandKeys = flip evalState st . expandKeysM
 
 expandKeysM :: [SyntaxToken Hoops] -> Expander [SyntaxToken Hoops]
 expandKeysM = let
-    defCreateSegment = match "DEFINE(HC_Create_Segment($seg),$key)"
-    defOpenSegment = match "DEFINE(HC_Open_Segment($seg),$key)"
-    defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$seg),$key)"
+    defCreateSegment = match "DEFINE(HC_Create_Segment($path),$key)"
+    defOpenSegment = match "DEFINE(HC_Open_Segment($path),$key)"
+    defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$path),$key)"
     openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key))"
     closeSegment = match "HC_Close_Segment()"
     lookup = match "LOOKUP($key)"
-    --defineAlias = match "HC_Define_Alias($seg,$seg)"
+    --defineAlias = match "HC_Define_Alias($path,$path)"
     renumberKey = match "HC_Renumber_Key(LOOKUP($key),$int,$str)"
     --moveByKey = match "HC_Move_By_Key(LOOKUP($key),$str)"
     --moveByKeyByKey = match "HC_Move_By_Key(LOOKUP($key),LOOKUP($key))"
-    --moveSegment = match "HC_Move_Segment($seg,$seg)"
-    --renameSegment = match "HC_Rename_Segment($seg,$seg)"
+    --moveSegment = match "HC_Move_Segment($path,$path)"
+    --renameSegment = match "HC_Rename_Segment($path,$path)"
     pickByFirst xs = case xs of
         (bool, kind) : rest -> if bool
             then Just kind
