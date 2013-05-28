@@ -7,7 +7,7 @@ module Transform.ExpandKeys (
 
 import Control.Monad.State.Strict
 import Data.Map (Map)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
 import Hoops.Match
@@ -34,7 +34,9 @@ type Expander = State ExpandState
 
 data Scope
     = Global
-    | Local SegPath
+    | LocalKP Key SegPath
+    | LocalK Key
+    | LocalP SegPath
     deriving (Show, Eq, Ord)
 
 
@@ -50,9 +52,15 @@ data CloseKind
 
 
 data OpenKind
-    = OpenSegByPath SegPath
-    | OpenSegByKey Key
+    = OpenSeg Segment
     | OpenNonSeg NonSegKind
+    deriving (Show, Eq, Ord)
+
+
+data Segment
+    = SegmentKeyPath Key SegPath
+    | SegmentKey Key
+    | SegmentPath SegPath
     deriving (Show, Eq, Ord)
 
 
@@ -69,8 +77,8 @@ expandKeys = flip evalState st . expandKeysM
     where
         st = ExpandState {
               openStack = []
-            , keyMap = M.empty
-            , aliasMap = M.empty
+            , keyMap = Map.empty
+            , aliasMap = Map.empty
             , anonymousNames = ["$" ++ show n | n <- [(0::Int) .. ]]
             }
 
@@ -116,13 +124,13 @@ expandKeysM = let
                 continue
             (defOpenSegment -> Captures [Ext (SegPath path), Ext (Key key)]) -> do
                 recordDef path key Global
-                open $ OpenSegByPath path
+                open $ OpenSeg $ SegmentKeyPath key path
                 continue
             (defOpenSegmentKeyByKey -> CapturesRest [Ext (Key k1), Ext (SegPath path), Ext (Key k2)] rest) -> do
                 mExpanded <- expandOpenSegmentKeyByKey k1 path
                 case mExpanded of
                     Nothing -> do
-                        open $ OpenSegByKey k2
+                        open $ OpenSeg $ SegmentKey k2
                         continue
                     Just expanded -> do
                         let ts = i "DEFINE" : p "(" : expanded ++ [p ",", Ext $ Key k2, p ")"]
@@ -131,10 +139,10 @@ expandKeysM = let
                 mExpanded <- expandOpenSegmentByKey key
                 case mExpanded of
                     Nothing -> do
-                        open $ OpenSegByKey key
+                        open $ OpenSeg $ SegmentKey key
                         continue
                     Just (expanded, path) -> do
-                        open $ OpenSegByPath path
+                        open $ OpenSeg $ SegmentKeyPath key path
                         ts <- expandKeysM rest
                         return $ expanded ++ ts
             (closeSegment -> True) -> do
@@ -152,10 +160,13 @@ expandKeysM = let
                 mScope <- case scopeStr of
                     'g' : _ -> return $ Just Global
                     'l' : _ -> do
-                        mPath <- currentlyOpenedPath
-                        return $ case mPath of
+                        mSeg <- currentlyOpenedSeg
+                        return $ case mSeg of
                             Nothing -> Nothing
-                            Just path -> Just $ Local path
+                            Just seg -> Just $ case seg of
+                                SegmentKeyPath key path -> LocalKP key path
+                                SegmentKey key -> LocalK key
+                                SegmentPath path -> LocalP path
                     _ -> return Nothing
                 case mScope of
                     Nothing -> continue
@@ -183,15 +194,21 @@ expandKeysM = let
 
 open :: OpenKind -> Expander ()
 open kind = case kind of
-    OpenSegByPath path -> do
-        mCurrPath <- currentlyOpenedPath
-        case mCurrPath of
-            Nothing -> modify $ \st -> st { openStack = kind : openStack st }
-            Just currPath -> let
-                path' = currPath `mappend` path
-                kind' = OpenSegByPath path'
-                in modify $ \st -> st { openStack = kind' : openStack st }
-    _ -> modify $ \st -> st { openStack = kind : openStack st }
+    OpenSeg seg -> case seg of
+        SegmentKeyPath key path -> openWithPath path $ Just key
+        SegmentPath path -> openWithPath path Nothing
+        SegmentKey {} -> openWithoutPath
+    _ -> openWithoutPath
+    where
+        openWithoutPath = modify $ \st -> st { openStack = kind : openStack st }
+        openWithPath path mKey = do
+            mCurrPath <- currentlyOpenedPath
+            case mCurrPath of
+                Nothing -> modify $ \st -> st { openStack = kind : openStack st }
+                Just currPath -> let
+                    path' = currPath `mappend` path
+                    kind' = OpenSeg $ maybe SegmentPath SegmentKeyPath mKey path'
+                    in modify $ \st -> st { openStack = kind' : openStack st }
 
 
 close :: CloseKind -> Expander ()
@@ -200,31 +217,67 @@ close closeKind = do
     modify $ \st -> st { openStack = drop 1 $ dropWhile pred $ openStack st }
     where
         openKindToCloseKind openKind = case openKind of
-            OpenSegByPath {} -> CloseSeg
-            OpenSegByKey {} -> CloseSeg
+            OpenSeg {} -> CloseSeg
             OpenNonSeg kind -> CloseNonSeg kind
 
 
-currentlyOpenedPath :: Expander (Maybe SegPath)
-currentlyOpenedPath = do
+currentlyOpenedSeg :: Expander (Maybe Segment)
+currentlyOpenedSeg = do
     mOpen <- gets $ listToMaybe . openStack
     case mOpen of
         Nothing -> return Nothing
         Just open -> case open of
-            OpenSegByPath path -> return $ Just path
+            OpenSeg seg -> return $ Just seg
             _ -> return Nothing
+
+
+currentlyOpenedPath :: Expander (Maybe SegPath)
+currentlyOpenedPath = do
+    mSeg <- currentlyOpenedSeg
+    return $ case mSeg of
+        Just seg -> case seg of
+            SegmentKeyPath _ path -> Just path
+            SegmentPath path -> Just path
+            SegmentKey {} -> Nothing
+        Nothing -> Nothing
 
 
 lookupPath :: Key -> Expander (Maybe SegPath)
 lookupPath key = do
-    mCurrPath <- currentlyOpenedPath
-    case mCurrPath of
-        Nothing -> gets $ M.lookup (key, Global) . keyMap
-        Just currPath -> do
-            mPath <- gets $ M.lookup (key, Local currPath) . keyMap
-            case mPath of
-                Just path -> return $ Just path
-                Nothing -> gets $ M.lookup (key, Global) . keyMap
+    mCurrSeg <- currentlyOpenedSeg
+    case mCurrSeg of
+        Nothing -> gets $ Map.lookup (key, Global) . keyMap
+        Just currSeg -> case currSeg of
+            SegmentKeyPath currKey currPath -> do
+                mPath1 <- gets $ Map.lookup (key, LocalKP currKey currPath) . keyMap
+                case mPath1 of
+                    Just path -> return $ Just path
+                    Nothing -> do
+                        mPath2 <- gets $ Map.lookup (key, LocalK currKey) . keyMap
+                        case mPath2 of
+                            Just path -> return $ Just path
+                            Nothing -> do
+                                mPath3 <- gets $ Map.lookup (key, LocalP currPath) . keyMap
+                                case mPath3 of
+                                    Just path -> return $ Just path
+                                    Nothing -> gets $ Map.lookup (key, Global) . keyMap
+            SegmentPath currPath -> do
+                mPath <- gets $ Map.lookup (key, LocalP currPath) . Map.mapKeys discardScopeKey . keyMap
+                case mPath of
+                    Just path -> return $ Just path
+                    Nothing -> gets $ Map.lookup (key, Global) . keyMap
+            SegmentKey currKey -> do
+                mPath <- gets $ Map.lookup (key, LocalK currKey) . Map.mapKeys discardScopePath . keyMap
+                case mPath of
+                    Just path -> return $ Just path
+                    Nothing -> gets $ Map.lookup (key, Global) . keyMap
+    where
+        discardScopeKey (key, scope) = case scope of
+            LocalKP _ path -> (key, LocalP path)
+            _ -> (key, scope)
+        discardScopePath (key, scope) = case scope of
+            LocalKP localKey _ -> (key, LocalK localKey)
+            _ -> (key, scope)
 
 
 recordDef :: SegPath -> Key -> Scope -> Expander ()
@@ -240,7 +293,7 @@ recordDef path key scope = let
                 return $ currPath `merge` mkSegPath anonName
             else return $ currPath `merge` path
         modify $ \st -> st {
-              keyMap = M.insert (key, scope) path' $ keyMap st
+              keyMap = Map.insert (key, scope) path' $ keyMap st
             }
 
 
