@@ -2,6 +2,7 @@
 
 module Hoops.SyntaxToken (
       module Language.Cpp.SyntaxToken
+    , module Hoops.SegPath
     , Hoops(..)
     , expandHoops
     , Key

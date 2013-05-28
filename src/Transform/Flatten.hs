@@ -8,7 +8,6 @@ module Transform.Flatten (
 import Control.Monad.State.Lazy
 import Data.Maybe
 import Hoops.Match
-import Hoops.SegPath
 import Hoops.SyntaxToken
 
 

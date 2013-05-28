@@ -11,7 +11,6 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
 import Hoops.Match
-import Hoops.SegPath
 import Hoops.SyntaxToken
 import Prelude hiding (lookup, pred)
 
