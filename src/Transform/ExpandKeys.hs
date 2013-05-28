@@ -5,7 +5,7 @@ module Transform.ExpandKeys (
     ) where
 
 
-import Control.Monad.State.Strict
+import Control.Monad.State.Lazy
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe

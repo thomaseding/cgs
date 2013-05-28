@@ -7,7 +7,7 @@ module Transform.Nop (
 
 
 import Control.Monad.Reader
-import Control.Monad.State.Strict
+import Control.Monad.State.Lazy
 import Data.List
 import Data.Set (Set)
 import qualified Data.Set as Set

@@ -5,7 +5,7 @@ module Transform.Flatten (
     ) where
 
 
-import Control.Monad.State.Strict
+import Control.Monad.State.Lazy
 import Data.Maybe
 import Hoops.Match
 import Hoops.SegPath
