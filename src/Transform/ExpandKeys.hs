@@ -29,9 +29,6 @@ p1 `merge` p2 = if isAbsolute p1
     else p2
 
 
-type Expander = State ExpandState
-
-
 data Scope
     = Global
     | LocalKP Key SegPath
@@ -70,6 +67,9 @@ data ExpandState = ExpandState {
     , aliasMap :: Map SegPath SegPath
     , anonymousNames :: [String]
     }
+
+
+type Expander = State ExpandState
 
 
 expandKeys :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
@@ -212,9 +212,13 @@ open kind = case kind of
 
 
 close :: CloseKind -> Expander ()
-close closeKind = do
-    let pred = (/= closeKind) . openKindToCloseKind
-    modify $ \st -> st { openStack = drop 1 $ dropWhile pred $ openStack st }
+close closeKind = modify $ \st -> let
+    opens = openStack st
+    mTopOpen = listToMaybe opens
+    newOpens = if fmap openKindToCloseKind mTopOpen == Just closeKind
+        then tail opens
+        else opens
+    in st { openStack = newOpens }
     where
         openKindToCloseKind openKind = case openKind of
             OpenSeg {} -> CloseSeg
