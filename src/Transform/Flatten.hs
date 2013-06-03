@@ -28,12 +28,12 @@ data Segment
     | SegByKeyByPath Key SegPath
 
 
-data Open
-    = OpenBySeg Segment
+data OpenKind
+    = OpenSeg Segment -- TODO: OpenNonSeg
 
 
 data FlattenState = FlattenState {
-      opens :: [Open]
+      openStack :: [OpenKind]
     }
 
 
@@ -41,7 +41,7 @@ flatten :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
 flatten = flip evalState st . flattenM
     where
         st = FlattenState {
-              opens = []
+              openStack = []
             }
 
 
@@ -59,46 +59,46 @@ flattenM = let
     in \toks -> let
         in case toks of
             (defOpenSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> do
-                needsClose <- fmap (isAbsolute path &&) $ gets $ not . null . opens
-                withOpens $ (:) $ OpenBySeg $ SegByPath path
+                needsClose <- fmap (isAbsolute path &&) $ gets $ not . null . openStack
+                withOpenStack $ (:) $ OpenSeg $ SegByPath path
                 advance rest $ if needsClose
                     then closeSegmentToks ++ prefix
                     else prefix
             (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> do
-                needsClose <- gets $ not . null . opens
-                withOpens $ (:) $ OpenBySeg $ SegByKeyByPath key path
+                needsClose <- gets $ not . null . openStack
+                withOpenStack $ (:) $ OpenSeg $ SegByKeyByPath key path
                 advance rest $ if needsClose
                     then closeSegmentToks ++ prefix
                     else prefix
             (openSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> do
-                needsClose <- fmap (isAbsolute path &&) $ gets $ not . null . opens
-                withOpens $ (:) $ OpenBySeg $ SegByPath path
+                needsClose <- fmap (isAbsolute path &&) $ gets $ not . null . openStack
+                withOpenStack $ (:) $ OpenSeg $ SegByPath path
                 advance rest $ if needsClose
                     then closeSegmentToks ++ prefix
                     else prefix
             (openSegmentByKey -> PrefixCapturesRest prefix [Ext (Key key)] rest) -> do
-                needsClose <- gets $ not . null . opens
-                withOpens $ (:) $ OpenBySeg $ SegByKey key
+                needsClose <- gets $ not . null . openStack
+                withOpenStack $ (:) $ OpenSeg $ SegByKey key
                 advance rest $ if needsClose
                     then closeSegmentToks ++ prefix
                     else prefix
             (openSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> do
-                needsClose <- gets $ not . null . opens
-                withOpens $ (:) $ OpenBySeg $ SegByKeyByPath key path
+                needsClose <- gets $ not . null . openStack
+                withOpenStack $ (:) $ OpenSeg $ SegByKeyByPath key path
                 advance rest $ if needsClose
                     then closeSegmentToks ++ prefix
                     else prefix
             (closeSegment -> PrefixRest prefix rest) -> do
-                mOldOpen <- gets $ listToMaybe . opens
+                mOldOpen <- gets $ listToMaybe . openStack
                 let wasRelative = case mOldOpen of
-                        Just (OpenBySeg seg) -> case seg of
+                        Just (OpenSeg seg) -> case seg of
                             SegByPath path -> isRelative path
                             _ -> False
                         Nothing -> False
-                withOpens $ drop 1
-                mCurrOpen <- gets $ listToMaybe . opens
+                withOpenStack $ drop 1 -- TODO: Make this work properly when non-segments are open
+                mCurrOpen <- gets $ listToMaybe . openStack
                 advance rest $ case mCurrOpen of
-                    Just (OpenBySeg seg) -> (prefix ++) $ case seg of
+                    Just (OpenSeg seg) -> (prefix ++) $ case seg of
                         SegByPath path -> if wasRelative
                             then []
                             else openSegmentToks path
@@ -125,8 +125,8 @@ closeSegmentToks :: [SyntaxToken Hoops]
 closeSegmentToks = i "HC_Close_Segment" : p "(" : p ")" : p ";" : []
 
 
-withOpens :: ([Open] -> [Open]) -> Flattener ()
-withOpens f = modify $ \st -> st { opens = f $ opens st }
+withOpenStack :: ([OpenKind] -> [OpenKind]) -> Flattener ()
+withOpenStack f = modify $ \st -> st { openStack = f $ openStack st }
 
 
 
