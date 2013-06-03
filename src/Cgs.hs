@@ -12,6 +12,7 @@ import System.Exit
 import Text.Indent
 import Transform.ExpandKeys
 import Transform.Flatten
+import Transform.Merge
 import Transform.Nop
 
 
@@ -30,7 +31,7 @@ additionalIndent = untag . (indent KeepOldTabs :: String -> Tagged CodeGen Strin
 
 
 cgs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
-cgs = removeNopPairs . flatten . removeUnusedDefines . removeNopPairs . expandKeys
+cgs = merge . removeNopPairs . flatten . removeUnusedDefines . removeNopPairs . expandKeys
 
 
 lexCode :: Code -> IO [SyntaxToken Hoops]
