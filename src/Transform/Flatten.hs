@@ -6,6 +6,7 @@ module Transform.Flatten (
 
 
 import Control.Monad.State.Lazy
+import Data.List
 import Data.Maybe
 import Hoops.Match
 import Hoops.SyntaxToken
@@ -28,8 +29,12 @@ data Segment
     | SegByKeyByPath Key SegPath
 
 
+type NonSegmentKind = String
+
+
 data OpenKind
-    = OpenSeg Segment -- TODO: OpenNonSeg
+    = OpenSeg Segment
+    | OpenNonSeg NonSegmentKind
 
 
 data FlattenState = FlattenState {
@@ -90,22 +95,40 @@ flattenM = let
                     else prefix
             (closeSegment -> PrefixRest prefix rest) -> do
                 mOldOpen <- gets $ listToMaybe . openStack
-                let wasRelative = case mOldOpen of
-                        Just (OpenSeg seg) -> case seg of
-                            SegByPath path -> isRelative path
-                            _ -> False
-                        Nothing -> False
-                withOpenStack $ drop 1 -- TODO: Make this work properly when non-segments are open
-                mCurrOpen <- gets $ listToMaybe . openStack
-                advance rest $ case mCurrOpen of
-                    Just (OpenSeg seg) -> (prefix ++) $ case seg of
-                        SegByPath path -> if wasRelative
-                            then []
-                            else openSegmentToks path
-                        SegByKey key -> openSegmentByKeyToks key
-                        SegByKeyByPath key path -> openSegmentKeyByKeyToks key path
-                    Nothing -> prefix
-            t : ts -> advance ts [t]
+                case mOldOpen of
+                    Just (OpenSeg oldSeg) -> do
+                        let wasRelative = case oldSeg of
+                                SegByPath path -> isRelative path
+                                _ -> False
+                        withOpenStack tail
+                        mCurrOpen <- gets $ listToMaybe . openStack
+                        advance rest $ case mCurrOpen of
+                            Just (OpenSeg seg) -> (prefix ++) $ case seg of
+                                SegByPath path -> if wasRelative
+                                    then []
+                                    else openSegmentToks path
+                                SegByKey key -> openSegmentByKeyToks key
+                                SegByKeyByPath key path -> openSegmentKeyByKeyToks key path
+                            _ -> prefix
+                    _ -> advance rest prefix
+            t : ts -> case t of
+                Identifier ('H':'C':'_':name) -> let
+                    mOpenType = stripPrefix "Open_" name
+                    mCloseType = stripPrefix "Close_" name
+                    in case mOpenType of
+                        Just openType -> do
+                            withOpenStack (OpenNonSeg openType :)
+                            advance ts [t]
+                        Nothing -> case mCloseType of
+                            Just closeType -> do
+                                withOpenStack $ \opens -> case opens of
+                                    OpenNonSeg openType : rest -> if openType == closeType
+                                        then rest
+                                        else opens
+                                    _ -> opens
+                                advance ts [t]
+                            Nothing -> advance ts [t]
+                _ -> advance ts [t]
             [] -> return []
 
 
