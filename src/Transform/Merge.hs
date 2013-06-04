@@ -59,10 +59,10 @@ mergeM = let
         rest' <- mergeM rest
         return $ front ++ rest'
     in \tokens -> case tokens of
-        (matchOpen -> PrefixOpenRest prefix open rest) -> do
+        (matchOpenSeg -> PrefixOpenRest prefix open rest) -> do
             withOpenStack (open :)
             advance rest prefix
-        (closeSegment -> PrefixRest closePrefix (matchOpen -> PrefixOpenRest openPrefix open rest)) -> do
+        (closeSegment -> PrefixRest closePrefix (matchOpenSeg -> PrefixOpenRest openPrefix open rest)) -> do
             mOpen <- gets $ listToMaybe . openStack
             advance rest =<< if mOpen == Just open
                 then return []
@@ -97,8 +97,8 @@ mergeM = let
         [] -> return []
 
 
-matchOpen :: [SyntaxToken Hoops] -> PrefixOpenRest
-matchOpen = let
+matchOpenSeg :: [SyntaxToken Hoops] -> PrefixOpenRest
+matchOpenSeg = let
     defOpenSegment = match "DEFINE(HC_Open_Segment($path),$!key);"
     defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key($key,$path),$!key);"
     openSegment = match "HC_Open_Segment($path);"
