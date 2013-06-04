@@ -61,36 +61,36 @@ flattenM = let
     advance rest front = do
         rest' <- flattenM rest
         return $ front ++ rest'
-    in \toks -> let
-        in case toks of
+    in \tokens -> let
+        in case tokens of
             (defOpenSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> do
-                needsClose <- fmap (isAbsolute path &&) $ gets $ not . null . openStack
+                needsCloseSeg <- fmap (isAbsolute path &&) hasOpenedSeg
                 withOpenStack $ (:) $ OpenSeg $ SegByPath path
-                advance rest $ if needsClose
+                advance rest $ if needsCloseSeg
                     then closeSegmentToks ++ prefix
                     else prefix
             (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> do
-                needsClose <- gets $ not . null . openStack
+                needsCloseSeg <- hasOpenedSeg
                 withOpenStack $ (:) $ OpenSeg $ SegByKeyByPath key path
-                advance rest $ if needsClose
+                advance rest $ if needsCloseSeg
                     then closeSegmentToks ++ prefix
                     else prefix
             (openSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> do
-                needsClose <- fmap (isAbsolute path &&) $ gets $ not . null . openStack
+                needsCloseSeg <- fmap (isAbsolute path &&) hasOpenedSeg
                 withOpenStack $ (:) $ OpenSeg $ SegByPath path
-                advance rest $ if needsClose
+                advance rest $ if needsCloseSeg
                     then closeSegmentToks ++ prefix
                     else prefix
             (openSegmentByKey -> PrefixCapturesRest prefix [Ext (Key key)] rest) -> do
-                needsClose <- gets $ not . null . openStack
+                needsCloseSeg <- hasOpenedSeg
                 withOpenStack $ (:) $ OpenSeg $ SegByKey key
-                advance rest $ if needsClose
+                advance rest $ if needsCloseSeg
                     then closeSegmentToks ++ prefix
                     else prefix
             (openSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> do
-                needsClose <- gets $ not . null . openStack
+                needsCloseSeg <- hasOpenedSeg
                 withOpenStack $ (:) $ OpenSeg $ SegByKeyByPath key path
-                advance rest $ if needsClose
+                advance rest $ if needsCloseSeg
                     then closeSegmentToks ++ prefix
                     else prefix
             (closeSegment -> PrefixRest prefix rest) -> do
@@ -136,6 +136,10 @@ viewOpenSeg :: OpenKind -> Maybe Segment
 viewOpenSeg kind = case kind of
     OpenSeg seg -> Just seg
     _ -> Nothing
+
+
+hasOpenedSeg :: Flattener Bool
+hasOpenedSeg = gets $ isJust . (viewOpenSeg <=< listToMaybe . openStack)
 
 
 openSegmentToks :: SegPath -> [SyntaxToken Hoops]
