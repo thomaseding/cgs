@@ -115,7 +115,7 @@ expandM = let
                 mParentPath <- lookupPath parentKey
                 case mParentPath of
                     Just parentPath -> do
-                        let path' = parentPath `merge` childPath -- TODO: The childPath MUST be interpreted as a relative path even if it begins with a '/'
+                        let path' = parentPath `merge` childPath
                         recordDef path' defKey Global
                         advance prefix rest -- TODO: This case can be simplified down to a normal [DEFINE(HC_Create_Segment(path)),key]
                     Nothing -> do
@@ -322,7 +322,7 @@ expandOpenSegmentKeyByKey parentKey childPath = do
     return $ case mParentPath of
         Nothing -> Nothing
         Just parentPath -> let
-            path = parentPath `merge` childPath -- TODO: childPath MUST be interpreted as a relative path even if it begins with a '/'
+            path = parentPath `merge` childPath
             in Just $ i "HC_Open_Segment" : p "(" : Ext (SegPath path) : p ")" : []
 
 

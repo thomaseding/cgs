@@ -9,6 +9,7 @@ module Hoops.Lex (
 import Control.Exception (assert)
 import Data.Char
 import Data.List
+import Data.Ord
 import Hoops.Match
 import Hoops.SegPath
 import Hoops.SyntaxToken
@@ -31,31 +32,40 @@ p :: String -> SyntaxToken Hoops
 p = Punctuation . punc
 
 
+data PathRule = Infer | ForceRelative
+
+
 segPaths :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
 segPaths = let
     matchers = [
-        matchBy "HC_Begin_Contents_Search($str, $str)" [0]
-      , matchBy "HC_Conditional_Include($str, $str)" [0]
-      , matchBy "HC_Conditional_Style($str, $str)" [0]
-      , matchBy "HC_Create_Segment($str)" [0]
-      , matchBy "HC_Define_Alias($str, $str)" [0, 1]
-      , matchBy "HC_Delete_Segment($str)" [0]
-      , matchBy "HC_Flush_Contents($str, $str)" [0]
-      , matchBy "HC_Include_Segment($str)" [0]
-      , matchBy "HC_Move_Segment($str, $str)" [0]
-      , matchBy "HC_Open_Segment($str)" [0]
-      , matchBy "HC_Rename_Segment($str, $str)" [0]
-      , matchBy "HC_Style_Segment($str)" [0]
-      , matchBy "HC_Update_One_Display($str)" [0]
+        matchBy "HC_Begin_Contents_Search($str, $!str)" [(0, Infer)]
+      , matchBy "HC_Conditional_Include($str, $!str)" [(0, Infer)]
+      , matchBy "HC_Conditional_Style($str, $!str)" [(0, Infer)]
+      , matchBy "HC_Create_Segment_Key_By_Key($!key,$str)" [(0, ForceRelative)]
+      , matchBy "HC_Create_Segment($str)" [(0, Infer)]
+      , matchBy "HC_Define_Alias($str, $str)" [(0, Infer), (1, Infer)]
+      , matchBy "HC_Delete_Segment($str)" [(0, Infer)]
+      , matchBy "HC_Flush_Contents($str, $!str)" [(0, Infer)]
+      , matchBy "HC_Include_Segment($str)" [(0, Infer)]
+      , matchBy "HC_Move_Segment($str, $!str)" [(0, Infer)] -- TODO: If moved by wildcard, things can get tricky. Currently not handling that case
+      , matchBy "HC_Open_Segment($str)" [(0, Infer)]
+      , matchBy "HC_Open_Segment_Key_By_Key($!key,$str)" [(0, ForceRelative)]
+      , matchBy "HC_Rename_Segment($str, $!str)" [(0, Infer)] -- TODO: If renamed by wildcard, things can get tricky. Currently not handling that case
+      , matchBy "HC_Style_Segment($str)" [(0, Infer)]
+      , matchBy "HC_Update_One_Display($str)" [(0, Infer)]
       ]
-    matchBy str idxs = (match str, nub $ sort idxs)
+    matchBy str idxs = (match str, sortBy (comparing fst) idxs)
     undetail idxs d = case d of
         Lit t -> t
-        Wild idx t -> if idx `elem` idxs
-            then Ext $ SegPath $ mkSegPath $ case t of
-                String str -> str
+        Wild idx t -> case find (\(idx', _) -> idx == idx') idxs of
+            Just (_, rule) -> Ext $ SegPath $ mkSegPath $ case t of
+                String str -> case rule of
+                    Infer -> str
+                    ForceRelative -> case str of
+                        '/' : str' -> str'
+                        _ -> str
                 _ -> assert False undefined
-            else t
+            Nothing -> t
     go _ [] = []
     go [] (t:ts) = t : go matchers ts
     go ((m, idxs) : ms) ts = case m ts of
