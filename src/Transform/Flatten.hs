@@ -12,6 +12,10 @@ import Hoops.Match
 import Hoops.SyntaxToken
 
 
+
+import Language.Cpp.Pretty
+
+
 i :: String -> SyntaxToken Hoops
 i = Identifier
 
@@ -53,10 +57,10 @@ flatten = flip evalState st . flattenM
 flattenM :: [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
 flattenM = let
     defOpenSegment = match "DEFINE(HC_Open_Segment($path),$!key);"
-    defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key($key,$path),$!key);"
+    defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$path),$!key);"
     openSegment = match "HC_Open_Segment($path);"
-    openSegmentByKey = match "HC_Open_Segment_By_Key($key);"
-    openSegmentKeyByKey = match "HC_Open_Segment_Key_By_Key($key, $path);"
+    openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key));"
+    openSegmentKeyByKey = match "HC_Open_Segment_Key_By_Key(LOOKUP($key), $path);"
     closeSegment = match "HC_Close_Segment();"
     advance rest front = do
         rest' <- flattenM rest
@@ -94,23 +98,23 @@ flattenM = let
                     then closeSegmentToks ++ prefix
                     else prefix
             (closeSegment -> PrefixRest prefix rest) -> do
-                mOldOpen <- gets $ listToMaybe . openStack
-                case mOldOpen of
-                    Just (OpenSeg oldSeg) -> do
-                        let wasRelative = case oldSeg of
-                                SegByPath path -> isRelative path
-                                _ -> False
+                mOldSeg <- gets $ viewOpenSeg <=< listToMaybe . openStack
+                advance rest =<< case mOldSeg of
+                    Just oldSeg -> do
+                        let mOldPath = case oldSeg of
+                                SegByPath oldPath -> Just oldPath
+                                _ -> Nothing
                         withOpenStack tail
                         mCurrOpen <- gets $ listToMaybe . openStack
-                        advance rest $ case mCurrOpen of
-                            Just (OpenSeg seg) -> (prefix ++) $ case seg of
-                                SegByPath path -> if wasRelative
+                        case mCurrOpen of
+                            Just (OpenSeg seg) -> return $ (prefix ++) $ case seg of
+                                SegByPath path -> if fmap isRelative mOldPath == Just True
                                     then []
                                     else openSegmentToks path
                                 SegByKey key -> openSegmentByKeyToks key
                                 SegByKeyByPath key path -> openSegmentKeyByKeyToks key path
-                            _ -> prefix
-                    _ -> advance rest prefix
+                            _ -> return prefix
+                    _ -> return prefix
             t : ts -> case t of
                 Identifier ('H':'C':'_':name) -> let
                     mOpenType = stripPrefix "Open_" name
@@ -130,6 +134,12 @@ flattenM = let
                             Nothing -> advance ts [t]
                 _ -> advance ts [t]
             [] -> return []
+
+
+viewOpenSeg :: OpenKind -> Maybe Segment
+viewOpenSeg kind = case kind of
+    OpenSeg seg -> Just seg
+    _ -> Nothing
 
 
 openSegmentToks :: SegPath -> [SyntaxToken Hoops]
