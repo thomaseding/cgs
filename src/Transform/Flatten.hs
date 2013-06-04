@@ -12,10 +12,6 @@ import Hoops.Match
 import Hoops.SyntaxToken
 
 
-
-import Language.Cpp.Pretty
-
-
 i :: String -> SyntaxToken Hoops
 i = Identifier
 
@@ -147,11 +143,11 @@ openSegmentToks path = i "HC_Open_Segment" : p "(" : Ext (SegPath path) : p ")" 
 
 
 openSegmentByKeyToks :: Key -> [SyntaxToken Hoops]
-openSegmentByKeyToks key = i "HC_Open_Segment_By_Key" : p "(" : Ext (Key key) : p ")" : p ";" : []
+openSegmentByKeyToks key = i "HC_Open_Segment_By_Key" : p "(" : i "LOOKUP" : p "(" : Ext (Key key) : p ")" : p ")" : p ";" : []
 
 
 openSegmentKeyByKeyToks :: Key -> SegPath -> [SyntaxToken Hoops]
-openSegmentKeyByKeyToks key path = i "HC_Open_Segment_Key_By_Key" : p "(" : Ext (Key key) : p "," : Ext (SegPath path) : p ")" : p ";" : []
+openSegmentKeyByKeyToks key path = i "HC_Open_Segment_Key_By_Key" : p "(" : i "LOOKUP" : p "(" : Ext (Key key) : p ")" : p "," : Ext (SegPath path) : p ")" : p ";" : []
 
 
 closeSegmentToks :: [SyntaxToken Hoops]
