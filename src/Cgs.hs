@@ -31,7 +31,15 @@ additionalIndent = untag . (indent KeepOldTabs :: String -> Tagged CodeGen Strin
 
 
 cgs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
-cgs = merge . removeNopPairs . flatten . removeUnusedDefines . removeNopPairs . expand
+cgs = id
+    -- does this need to continuously (removeNopPairs . merge) until a fixed point is found?
+    . removeNopPairs
+    . merge
+    . removeNopPairs
+    . flatten
+    . removeUnusedDefines
+    . removeNopPairs
+    . expand
 
 
 lexCode :: Code -> IO [SyntaxToken Hoops]
