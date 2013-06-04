@@ -6,6 +6,7 @@ module Transform.Expand (
 
 
 import Control.Monad.State.Lazy
+import Data.List hiding (lookup)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -37,20 +38,18 @@ data Scope
     deriving (Show, Eq, Ord)
 
 
-data NonSegKind
-    = Geometry
-    deriving (Show, Eq, Ord)
+type NonSegmentKind = String
 
 
 data CloseKind
     = CloseSeg
-    | CloseNonSeg NonSegKind
+    | CloseNonSeg NonSegmentKind
     deriving (Show, Eq, Ord)
 
 
 data OpenKind
     = OpenSeg Segment
-    | OpenNonSeg NonSegKind
+    | OpenNonSeg NonSegmentKind
     deriving (Show, Eq, Ord)
 
 
@@ -99,31 +98,16 @@ expandM = let
     --moveSegment = match "HC_Move_Segment($path,$path)"
     --renameSegment = match "HC_Rename_Segment($path,$path)"
     segpath = match "$path"
-    pickByFirst xs = case xs of
-        (bool, kind) : rest -> if bool
-            then Just kind
-            else pickByFirst rest
-        [] -> Nothing
-    openNonSeg = let
-        openers = map (\(str, kind) -> (match str, kind)) [
-              ("HC_Open_Geometry", Geometry)
-            ]
-        in \toks -> pickByFirst $ map (\(m, kind) -> (m toks, kind)) openers
-    closeNonSeg = let
-        closers = map (\(str, kind) -> (match str, kind)) [
-              ("HC_Close_Geometry", Geometry)
-            ]
-        in \toks -> pickByFirst $ map (\(m, kind) -> (m toks, kind)) closers
     advance rest front = do
         rest' <- expandM rest
         return $ front ++ rest'
-    in \toks -> let
-        continue = case toks of -- [continue]'s purpose over [advance] is that it allows the match prefix to continue to be developed by the Expander
+    in \tokens -> let
+        continue = case tokens of -- [continue]'s purpose over [advance] is that it allows the match prefix to continue to be developed by the Expander
             t : ts -> do
                 ts' <- expandM ts
                 return $ t : ts'
             [] -> return []
-        in case toks of
+        in case tokens of
             (defCreateSegment -> Captures [Ext (SegPath path), Ext (Key key)]) -> do
                 recordDef path key Global
                 continue
@@ -140,13 +124,13 @@ expandM = let
                         advance prefix rest
             (defOpenSegment -> Captures [Ext (SegPath path), Ext (Key key)]) -> do
                 recordDef path key Global
-                open $ OpenSeg $ SegmentKeyPath key path
+                openSeg $ SegmentKeyPath key path
                 continue
             (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key parentKey), Ext (SegPath childPath), Ext (Key defKey)] rest) -> do
                 mExpanded <- expandOpenSegmentKeyByKey parentKey childPath
                 case mExpanded of
                     Nothing -> do
-                        open $ OpenSeg $ SegmentKey defKey
+                        openSeg $ SegmentKey defKey
                         advance prefix rest
                     Just expanded -> do
                         let ts = i "DEFINE" : p "(" : expanded ++ [p ",", Ext $ Key defKey, p ")"]
@@ -155,14 +139,16 @@ expandM = let
                 mExpanded <- expandOpenSegmentByKey key
                 case mExpanded of
                     Nothing -> do
-                        open $ OpenSeg $ SegmentKey key
+                        openSeg $ SegmentKey key
                         continue
                     Just (expanded, path) -> do
-                        open $ OpenSeg $ SegmentKeyPath key path
+                        openSeg $ SegmentKeyPath key path
                         ts <- expandM rest
                         return $ expanded ++ ts
             (closeSegment -> True) -> do
-                close CloseSeg
+                withOpenStack $ \opens -> case opens of
+                    OpenSeg _ : rest -> rest
+                    _ -> opens
                 continue
             (lookup -> CapturesRest [Ext (Key key)] rest) -> do
                 mPath <- lookupPath key
@@ -199,49 +185,44 @@ expandM = let
                                 in do
                                     ts <- expandM rest
                                     return $ expanded ++ ts
-            (openNonSeg -> Just kind) -> do
-                open $ OpenNonSeg kind
-                continue
-            (closeNonSeg -> Just kind) -> do
-                close $ CloseNonSeg kind
-                continue
             (segpath -> CapturesRest [Ext (SegPath path)] rest) -> do
                 path' <- expandPath path
                 advance rest [Ext $ SegPath path']
+            (Identifier ('H':'C':'_':name) : _) -> do
+                let mOpenType = stripPrefix "Open_" name
+                    mCloseType = stripPrefix "Close_" name
+                case mOpenType of
+                    Just openType -> do
+                        withOpenStack (OpenNonSeg openType :)
+                    Nothing -> case mCloseType of
+                        Just closeType -> withOpenStack $ \opens -> case opens of
+                            OpenNonSeg openType : rest -> if openType == closeType
+                                then rest
+                                else opens
+                            _ -> opens
+                        Nothing -> return ()
+                continue
             _ -> continue
 
 
-open :: OpenKind -> Expander ()
-open kind = case kind of
-    OpenSeg seg -> case seg of
-        SegmentKeyPath key path -> openWithPath path $ Just key
-        SegmentPath path -> openWithPath path Nothing
-        SegmentKey {} -> openWithoutPath
-    _ -> openWithoutPath
+withOpenStack :: ([OpenKind] -> [OpenKind]) -> Expander ()
+withOpenStack f = modify $ \st -> st { openStack = f $ openStack st }
+
+
+openSeg :: Segment -> Expander ()
+openSeg seg = case seg of
+    SegmentKeyPath key path -> openWithPath path $ Just key
+    SegmentPath path -> openWithPath path Nothing
+    SegmentKey {} -> withOpenStack (OpenSeg seg :)
     where
-        openWithoutPath = modify $ \st -> st { openStack = kind : openStack st }
         openWithPath path mKey = do
             mCurrPath <- currentlyOpenedPath
             case mCurrPath of
-                Nothing -> modify $ \st -> st { openStack = kind : openStack st }
+                Nothing -> withOpenStack (OpenSeg seg :)
                 Just currPath -> let
                     path' = currPath `mappend` path
-                    kind' = OpenSeg $ maybe SegmentPath SegmentKeyPath mKey path'
-                    in modify $ \st -> st { openStack = kind' : openStack st }
-
-
-close :: CloseKind -> Expander ()
-close closeKind = modify $ \st -> let
-    opens = openStack st
-    mTopOpen = listToMaybe opens
-    newOpens = if fmap openKindToCloseKind mTopOpen == Just closeKind
-        then tail opens
-        else opens
-    in st { openStack = newOpens }
-    where
-        openKindToCloseKind openKind = case openKind of
-            OpenSeg {} -> CloseSeg
-            OpenNonSeg kind -> CloseNonSeg kind
+                    seg' = maybe SegmentPath SegmentKeyPath mKey path'
+                    in withOpenStack (OpenSeg seg' :)
 
 
 currentlyOpenedSeg :: Expander (Maybe Segment)
