@@ -100,10 +100,10 @@ mergeM = let
 matchOpenSeg :: [SyntaxToken Hoops] -> PrefixOpenRest
 matchOpenSeg = let
     defOpenSegment = match "DEFINE(HC_Open_Segment($path),$!key);"
-    defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key($key,$path),$!key);"
+    defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$path),$!key);"
     openSegment = match "HC_Open_Segment($path);"
-    openSegmentByKey = match "HC_Open_Segment_By_Key($key);"
-    openSegmentKeyByKey = match "HC_Open_Segment_Key_By_Key($key, $path);"
+    openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key));"
+    openSegmentKeyByKey = match "HC_Open_Segment_Key_By_Key(LOOKUP($key), $path);"
     in \tokens -> case tokens of
         (defOpenSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> let
             seg = SegByPath path
