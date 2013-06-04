@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
-module Transform.ExpandKeys (
-      expandKeys
+module Transform.Expand (
+      expand
     ) where
 
 
@@ -72,8 +72,8 @@ data ExpandState = ExpandState {
 type Expander = State ExpandState
 
 
-expandKeys :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
-expandKeys = flip evalState st . expandKeysM
+expand :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
+expand = flip evalState st . expandM
     where
         st = ExpandState {
               openStack = []
@@ -83,9 +83,10 @@ expandKeys = flip evalState st . expandKeysM
             }
 
 
-expandKeysM :: [SyntaxToken Hoops] -> Expander [SyntaxToken Hoops]
-expandKeysM = let
+expandM :: [SyntaxToken Hoops] -> Expander [SyntaxToken Hoops]
+expandM = let
     defCreateSegment = match "DEFINE(HC_Create_Segment($path),$key)"
+    defCreateSegmentKeyByKey = match "DEFINE(HC_Create_Segment_Key_By_Key(LOOKUP($key),$path),$key)"
     defOpenSegment = match "DEFINE(HC_Open_Segment($path),$key)"
     defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$path),$key)"
     openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key))"
@@ -97,6 +98,7 @@ expandKeysM = let
     --moveByKeyByKey = match "HC_Move_By_Key(LOOKUP($key),LOOKUP($key))"
     --moveSegment = match "HC_Move_Segment($path,$path)"
     --renameSegment = match "HC_Rename_Segment($path,$path)"
+    segpath = match "$path"
     pickByFirst xs = case xs of
         (bool, kind) : rest -> if bool
             then Just kind
@@ -112,29 +114,43 @@ expandKeysM = let
               ("HC_Close_Geometry", Geometry)
             ]
         in \toks -> pickByFirst $ map (\(m, kind) -> (m toks, kind)) closers
+    advance rest front = do
+        rest' <- expandM rest
+        return $ front ++ rest'
     in \toks -> let
-        continue = case toks of
+        continue = case toks of -- [continue]'s purpose over [advance] is that it allows the match prefix to continue to be developed by the Expander
             t : ts -> do
-                ts' <- expandKeysM ts
+                ts' <- expandM ts
                 return $ t : ts'
             [] -> return []
         in case toks of
             (defCreateSegment -> Captures [Ext (SegPath path), Ext (Key key)]) -> do
                 recordDef path key Global
                 continue
+            (defCreateSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key parentKey), Ext (SegPath childPath), Ext (Key defKey)] rest) -> do
+                mParentPath <- lookupPath parentKey
+                case mParentPath of
+                    Just parentPath -> do
+                        let path' = parentPath `merge` childPath -- TODO: The childPath MUST be interpreted as a relative path even if it begins with a '/'
+                        recordDef path' defKey Global
+                        advance prefix rest -- TODO: This case can be simplified down to a normal [DEFINE(HC_Create_Segment(path)),key]
+                    Nothing -> do
+                        -- I'm not bothering to even attempt to store the defined key in the Expander as a (parentKey, childPath).
+                        -- The worst that can happen is that later occurrences of the defined key won't be expanded. Whoop-dee-do.
+                        advance prefix rest
             (defOpenSegment -> Captures [Ext (SegPath path), Ext (Key key)]) -> do
                 recordDef path key Global
                 open $ OpenSeg $ SegmentKeyPath key path
                 continue
-            (defOpenSegmentKeyByKey -> CapturesRest [Ext (Key k1), Ext (SegPath path), Ext (Key k2)] rest) -> do
-                mExpanded <- expandOpenSegmentKeyByKey k1 path
+            (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key parentKey), Ext (SegPath childPath), Ext (Key defKey)] rest) -> do
+                mExpanded <- expandOpenSegmentKeyByKey parentKey childPath
                 case mExpanded of
                     Nothing -> do
-                        open $ OpenSeg $ SegmentKey k2
-                        continue
+                        open $ OpenSeg $ SegmentKey defKey
+                        advance prefix rest
                     Just expanded -> do
-                        let ts = i "DEFINE" : p "(" : expanded ++ [p ",", Ext $ Key k2, p ")"]
-                        expandKeysM $ ts ++ rest
+                        let ts = i "DEFINE" : p "(" : expanded ++ [p ",", Ext $ Key defKey, p ")"]
+                        expandM $ ts ++ rest
             (openSegmentByKey -> CapturesRest [Ext (Key key)] rest) -> do
                 mExpanded <- expandOpenSegmentByKey key
                 case mExpanded of
@@ -143,7 +159,7 @@ expandKeysM = let
                         continue
                     Just (expanded, path) -> do
                         open $ OpenSeg $ SegmentKeyPath key path
-                        ts <- expandKeysM rest
+                        ts <- expandM rest
                         return $ expanded ++ ts
             (closeSegment -> True) -> do
                 close CloseSeg
@@ -153,7 +169,7 @@ expandKeysM = let
                 case mPath of
                     Nothing -> continue
                     Just path -> do
-                        ts <- expandKeysM rest
+                        ts <- expandM rest
                         return $ i "K" : p "(" : Ext (SegPath path) : p ")" : ts
             (renumberKey -> CapturesRest [Ext (Key oldKey), Integer intKey, String scopeStr] rest) -> do
                 let newKey = mkKey intKey
@@ -181,7 +197,7 @@ expandKeysM = let
                                     : String scopeStr : p ")"
                                     : []
                                 in do
-                                    ts <- expandKeysM rest
+                                    ts <- expandM rest
                                     return $ expanded ++ ts
             (openNonSeg -> Just kind) -> do
                 open $ OpenNonSeg kind
@@ -189,6 +205,9 @@ expandKeysM = let
             (closeNonSeg -> Just kind) -> do
                 close $ CloseNonSeg kind
                 continue
+            (segpath -> CapturesRest [Ext (SegPath path)] rest) -> do
+                path' <- expandPath path
+                advance rest [Ext $ SegPath path']
             _ -> continue
 
 
@@ -284,21 +303,26 @@ lookupPath = \key -> do
             _ -> (key, scope)
 
 
-recordDef :: SegPath -> Key -> Scope -> Expander ()
-recordDef path key scope = let
+expandPath :: SegPath -> Expander SegPath
+expandPath path = let
     anonPath = mkSegPath ""
     in do
         mCurrPath <- currentlyOpenedPath
         let currPath = maybe mempty id mCurrPath
-        path' <- if path == anonPath
+        if path == anonPath
             then do
                 anonName <- gets $ head . anonymousNames
                 modify $ \st -> st { anonymousNames = tail $ anonymousNames st }
                 return $ currPath `merge` mkSegPath anonName
             else return $ currPath `merge` path
-        modify $ \st -> st {
-              keyMap = Map.insert (key, scope) path' $ keyMap st
-            }
+    
+
+recordDef :: SegPath -> Key -> Scope -> Expander ()
+recordDef path key scope = do
+    path' <- expandPath path
+    modify $ \st -> st {
+            keyMap = Map.insert (key, scope) path' $ keyMap st
+        }
 
 
 recordRenumberedKey :: Key -> Key -> Scope -> Expander (Maybe SegPath)
@@ -317,7 +341,7 @@ expandOpenSegmentKeyByKey parentKey childPath = do
     return $ case mParentPath of
         Nothing -> Nothing
         Just parentPath -> let
-            path = parentPath `merge` childPath
+            path = parentPath `merge` childPath -- TODO: childPath MUST be interpreted as a relative path even if it begins with a '/'
             in Just $ i "HC_Open_Segment" : p "(" : Ext (SegPath path) : p ")" : []
 
 
