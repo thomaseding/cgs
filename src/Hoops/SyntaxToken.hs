@@ -6,7 +6,8 @@ module Hoops.SyntaxToken (
     , Hoops(..)
     , expandHoops
     , Key
-    , MakeKey(..)
+    , MakeKey(mkKey)
+    , isUserKey
     ) where
 
 
@@ -33,6 +34,10 @@ data Key = Key2 Integer Integer
 
 instance Show Key where
     show (Key2 x y) = "Key(" ++ show x ++ "," ++ show y ++ ")"
+
+
+isUserKey :: Key -> Bool
+isUserKey (Key2 x y) = x >= 0 && y == -1
 
 
 class MakeKey a where

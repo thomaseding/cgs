@@ -70,7 +70,7 @@ flattenM = let
                     then closeSegmentToks ++ prefix
                     else prefix
             (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> do
-                needsCloseSeg <- hasOpenedSeg
+                needsCloseSeg <- fmap (not (isUserKey key) &&) $ hasOpenedSeg
                 withOpenStack $ (:) $ OpenSeg $ SegByKeyByPath key path
                 advance rest $ if needsCloseSeg
                     then closeSegmentToks ++ prefix
@@ -82,13 +82,13 @@ flattenM = let
                     then closeSegmentToks ++ prefix
                     else prefix
             (openSegmentByKey -> PrefixCapturesRest prefix [Ext (Key key)] rest) -> do
-                needsCloseSeg <- hasOpenedSeg
+                needsCloseSeg <- fmap (not (isUserKey key) &&) $ hasOpenedSeg
                 withOpenStack $ (:) $ OpenSeg $ SegByKey key
                 advance rest $ if needsCloseSeg
                     then closeSegmentToks ++ prefix
                     else prefix
             (openSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> do
-                needsCloseSeg <- hasOpenedSeg
+                needsCloseSeg <- fmap (not (isUserKey key) &&) $ hasOpenedSeg
                 withOpenStack $ (:) $ OpenSeg $ SegByKeyByPath key path
                 advance rest $ if needsCloseSeg
                     then closeSegmentToks ++ prefix
