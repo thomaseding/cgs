@@ -43,7 +43,7 @@ segPaths = let
       , matchBy "HC_Conditional_Style($str, $!str)" [(0, Infer)]
       , matchBy "HC_Create_Segment_Key_By_Key($!key,$str)" [(0, ForceRelative)]
       , matchBy "HC_Create_Segment($str)" [(0, Infer)]
-      , matchBy "HC_Define_Alias($str, $str)" [(0, Infer), (1, Infer)]
+      , matchBy "HC_Define_Alias($!str, $str)" [(1, Infer)]
       , matchBy "HC_Delete_Segment($str)" [(0, Infer)]
       , matchBy "HC_Flush_Contents($str, $!str)" [(0, Infer)]
       , matchBy "HC_Include_Segment($str)" [(0, Infer)]

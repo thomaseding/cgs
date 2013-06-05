@@ -9,11 +9,15 @@ module Hoops.SegPath (
     , isFromRoot
     , isFromAlias
     , isFromKey
+    , expandAlias
     ) where
 
 
+import Control.Exception (assert)
 import Data.Char
 import Data.List
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Monoid
 import Text.Parsec
 import Text.Parsec.String
@@ -88,6 +92,36 @@ instance Stringify Key where
 
 toString :: SegPath -> String
 toString = stringify
+
+
+expandAlias :: Map String SegPath -> SegPath -> Maybe SegPath
+expandAlias aliasMap = reify . drop 1 . iterate step . Just
+    where
+        step mPath = case mPath of
+            Nothing -> Nothing
+            Just path -> expandAlias' aliasMap path
+        reify (Just _ : Just x : mxs) = reify $ Just x : mxs
+        reify (mx : _) = mx
+        reify [] = assert False undefined
+
+
+expandAlias' :: Map String SegPath -> SegPath -> Maybe SegPath
+expandAlias' aliasMap path = case path of
+    Absolute (ByAlias alias ps) -> case Map.lookup alias aliasMap of
+        Just path' -> Just $ fuse path' ps
+        Nothing -> case Map.lookup ('?':alias) aliasMap of
+            Just path' -> Just $ fuse path' ps
+            Nothing -> Nothing
+    _ -> Nothing
+
+
+fuse :: SegPath -> [PathPart] -> SegPath
+fuse s ps = case s of
+    Absolute a -> Absolute $ case a of
+        ByAlias alias qs -> ByAlias alias $ qs ++ ps
+        ByRoot qs -> ByRoot $ qs ++ ps
+        ByKey key qs -> ByKey key $ qs ++ ps
+    Relative qs -> Relative $ qs ++ ps 
 
 
 isAbsolute :: SegPath -> Bool

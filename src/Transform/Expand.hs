@@ -6,6 +6,7 @@ module Transform.Expand (
 
 
 import Control.Monad.State.Lazy
+import Data.Char
 import Data.List hiding (lookup)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -63,7 +64,7 @@ data Segment
 data ExpandState = ExpandState {
       openStack :: [OpenKind]
     , keyMap :: Map (Key, Scope) SegPath
-    , aliasMap :: Map SegPath SegPath
+    , aliasMap :: Map String SegPath
     , anonymousNames :: [String]
     }
 
@@ -91,7 +92,7 @@ expandM = let
     openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key))"
     closeSegment = match "HC_Close_Segment()"
     lookup = match "LOOKUP($key)"
-    --defineAlias = match "HC_Define_Alias($path,$path)"
+    defineAlias = match "HC_Define_Alias($str,$path)"
     renumberKey = match "HC_Renumber_Key(LOOKUP($key),$int,$str)"
     --moveByKey = match "HC_Move_By_Key(LOOKUP($key),$str)"
     --moveByKeyByKey = match "HC_Move_By_Key(LOOKUP($key),LOOKUP($key))"
@@ -150,13 +151,6 @@ expandM = let
                     OpenSeg _ : rest -> rest
                     _ -> opens
                 continue
-            (lookup -> CapturesRest [Ext (Key key)] rest) -> do
-                mPath <- lookupPath key
-                case mPath of
-                    Nothing -> continue
-                    Just path -> do
-                        ts <- expandM rest
-                        return $ i "K" : p "(" : Ext (SegPath path) : p ")" : ts
             (renumberKey -> CapturesRest [Ext (Key oldKey), Integer intKey, String scopeStr] rest) -> do
                 let newKey = mkKey intKey
                 mScope <- case scopeStr of
@@ -185,6 +179,18 @@ expandM = let
                                 in do
                                     ts <- expandM rest
                                     return $ expanded ++ ts
+            (defineAlias -> PrefixCapturesRest prefix [String alias, Ext (SegPath path)] rest) -> do
+                let alias' = map toLower alias
+                    hcDefAlias = i "HC_Define_Alias" : p "(" : String alias'  : []
+                recordAlias alias' path
+                advance (drop 3 prefix ++ rest) hcDefAlias
+            (lookup -> CapturesRest [Ext (Key key)] rest) -> do
+                mPath <- lookupPath key
+                case mPath of
+                    Nothing -> continue
+                    Just path -> do
+                        ts <- expandM rest
+                        return $ i "K" : p "(" : Ext (SegPath path) : p ")" : ts
             (segpath -> CapturesRest [Ext (SegPath path)] rest) -> do
                 path' <- expandPath path
                 advance rest [Ext $ SegPath path']
@@ -295,14 +301,26 @@ expandPath path = let
                 anonName <- gets $ head . anonymousNames
                 modify $ \st -> st { anonymousNames = tail $ anonymousNames st }
                 return $ currPath `merge` mkSegPath anonName
-            else return $ currPath `merge` path
+            else do
+                mPath' <- gets $ flip expandAlias path . aliasMap
+                case mPath' of
+                    Nothing -> return $ currPath `merge` path
+                    Just path' -> expandPath path'
     
 
 recordDef :: SegPath -> Key -> Scope -> Expander ()
 recordDef path key scope = do
     path' <- expandPath path
     modify $ \st -> st {
-            keyMap = Map.insert (key, scope) path' $ keyMap st
+          keyMap = Map.insert (key, scope) path' $ keyMap st
+        }
+
+
+recordAlias :: String -> SegPath -> Expander ()
+recordAlias alias path = do
+    path' <- expandPath path
+    modify $ \st -> st {
+          aliasMap = Map.insert alias path' $ aliasMap st
         }
 
 
