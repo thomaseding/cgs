@@ -123,10 +123,11 @@ expandM = let
                         -- I'm not bothering to even attempt to store the defined key in the Expander as a (parentKey, childPath).
                         -- The worst that can happen is that later occurrences of the defined key won't be expanded. Whoop-dee-do.
                         advance prefix rest
-            (defOpenSegment -> Captures [Ext (SegPath path), Ext (Key key)]) -> do
+            (defOpenSegment -> PrefixCapturesRest prefix [Ext (SegPath path), Ext (Key key)] rest) -> do
+                prefix' <- expandPaths prefix
                 recordDef path key Global
                 openSeg $ SegmentKeyPath key path
-                continue
+                advance rest prefix'
             (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key parentKey), Ext (SegPath childPath), Ext (Key defKey)] rest) -> do
                 mExpanded <- expandOpenSegmentKeyByKey parentKey childPath
                 case mExpanded of
@@ -306,7 +307,17 @@ expandPath path = let
                 case mPath' of
                     Nothing -> return $ currPath `merge` path
                     Just path' -> expandPath path'
-    
+
+
+expandPaths :: [SyntaxToken Hoops] -> Expander [SyntaxToken Hoops]
+expandPaths [] = return []
+expandPaths (t:ts) = case t of
+    Ext (SegPath path) -> do
+        path' <- expandPath path
+        let t' = Ext $ SegPath path'
+        fmap (t' :) $ expandPaths ts
+    _ -> fmap (t :) $ expandPaths ts
+
 
 recordDef :: SegPath -> Key -> Scope -> Expander ()
 recordDef path key scope = do
