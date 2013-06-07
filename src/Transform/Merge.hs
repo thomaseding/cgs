@@ -52,12 +52,41 @@ merge = flip evalState st . mergeM
         }
 
 
+matchOpenSeg :: [SyntaxToken Hoops] -> PrefixOpenRest
+matchOpenSeg = let
+    defOpenSegment = match "DEFINE(HC_Open_Segment($path),$!key);"
+    defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$path),$!key);"
+    openSegment = match "HC_Open_Segment($path);"
+    openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key));"
+    openSegmentKeyByKey = match "HC_Open_Segment_Key_By_Key(LOOKUP($key), $path);"
+    in \tokens -> case tokens of
+        (defOpenSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> let
+            seg = SegByPath path
+            in PrefixOpenRest prefix (OpenSeg seg) rest
+        (openSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> let
+            seg = SegByPath path
+            in PrefixOpenRest prefix (OpenSeg seg) rest
+        (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> let
+            seg = SegByKeyByPath key path
+            in PrefixOpenRest prefix (OpenSeg seg) rest
+        (openSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> let
+            seg = SegByKeyByPath key path
+            in PrefixOpenRest prefix (OpenSeg seg) rest
+        (openSegmentByKey -> PrefixCapturesRest prefix [Ext (Key key)] rest) -> let
+            seg = SegByKey key
+            in PrefixOpenRest prefix (OpenSeg seg) rest
+        _ -> NoPrefixOpenRest
+
+
+advance :: [SyntaxToken Hoops] -> [SyntaxToken Hoops] -> Merger [SyntaxToken Hoops]
+advance toksToExpand prependToks = do
+    endToks <- mergeM toksToExpand
+    return $ prependToks ++ endToks
+
+
 mergeM :: [SyntaxToken Hoops] -> Merger [SyntaxToken Hoops]
 mergeM = let
     closeSegment = match "HC_Close_Segment();"
-    advance rest front = do
-        rest' <- mergeM rest
-        return $ front ++ rest'
     in \tokens -> case tokens of
         (matchOpenSeg -> PrefixOpenRest prefix open rest) -> do
             withOpenStack (open :)
@@ -95,42 +124,6 @@ mergeM = let
                         Nothing -> advance ts [t]
             _ -> advance ts [t]
         [] -> return []
-
-
-matchOpenSeg :: [SyntaxToken Hoops] -> PrefixOpenRest
-matchOpenSeg = let
-    defOpenSegment = match "DEFINE(HC_Open_Segment($path),$!key);"
-    defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$path),$!key);"
-    openSegment = match "HC_Open_Segment($path);"
-    openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key));"
-    openSegmentKeyByKey = match "HC_Open_Segment_Key_By_Key(LOOKUP($key), $path);"
-    in \tokens -> case tokens of
-        (defOpenSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> let
-            seg = SegByPath path
-            in PrefixOpenRest prefix (OpenSeg seg) rest
-        (openSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> let
-            seg = SegByPath path
-            in PrefixOpenRest prefix (OpenSeg seg) rest
-        (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> let
-            seg = SegByKeyByPath key path
-            in PrefixOpenRest prefix (OpenSeg seg) rest
-        (openSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> let
-            seg = SegByKeyByPath key path
-            in PrefixOpenRest prefix (OpenSeg seg) rest
-        (openSegmentByKey -> PrefixCapturesRest prefix [Ext (Key key)] rest) -> let
-            seg = SegByKey key
-            in PrefixOpenRest prefix (OpenSeg seg) rest
-        _ -> NoPrefixOpenRest
-
-
-    
-
-
-
-
-
-
-
 
 
 
