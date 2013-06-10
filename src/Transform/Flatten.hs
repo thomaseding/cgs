@@ -8,6 +8,8 @@ module Transform.Flatten (
 import Control.Monad.Reader
 import Control.Monad.State.Lazy
 import Data.List
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
 import Hoops.Match
 import Hoops.SyntaxToken
@@ -41,9 +43,21 @@ data OpenKind
     | OpenNonSeg NonSegmentKind
 
 
+data Scope = Local | Global
+    deriving (Eq)
+
+
 data FlattenState = FlattenState {
       openStack :: [OpenKind]
+    , userKeys :: Map Key [Scope]
     }
+
+
+data KeyKind
+    = SystemKey
+    | UndefinedKey
+    | UserKey Scope
+    deriving (Eq)
 
 
 flatten :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
@@ -52,6 +66,7 @@ flatten ts = flip evalState st . flip runReaderT cont . flattenM $ ts
         cont = Continue $ flattenM ts
         st = FlattenState {
               openStack = []
+            , userKeys = Map.empty
             }
 
 
@@ -71,8 +86,9 @@ flattenM = let
     defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$path),$!key);"
     openSegment = match "HC_Open_Segment($path);"
     openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key));"
-    openSegmentKeyByKey = match "HC_Open_Segment_Key_By_Key(LOOKUP($key), $path);"
+    openSegmentKeyByKey = match "HC_Open_Segment_Key_By_Key(LOOKUP($key),$path);"
     closeSegment = match "HC_Close_Segment();"
+    renumberKey = match "HC_Renumber_Key($!key,$int,$str);"
     in \tokens -> let
         cont = Continue $ case tokens of
             t : ts -> do
@@ -92,6 +108,8 @@ flattenM = let
                 handleOpenSegmentKeyByKey prefix key path rest
             (closeSegment -> PrefixRest prefix rest) -> do
                 handleCloseSegment prefix rest
+            (renumberKey -> Captures [Integer intKey, String scopeStr]) -> do
+                handleRenumberKey intKey scopeStr
             (Identifier ('H':'C':'_':name)) : _ -> do
                 handleHcCall name
             _ -> continue
@@ -126,7 +144,15 @@ handleOpenSegment prefix path rest = do
 
 handleOpenSegmentByKey :: [SyntaxToken Hoops] -> Key -> [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
 handleOpenSegmentByKey prefix key rest = do
-    needsCloseSeg <- fmap (not (isUserKey key) &&) $ hasOpenedSeg
+    keyKind <- getKeyKind key
+    needsCloseSeg <- let
+        canOpenAnywhere = case keyKind of
+            SystemKey -> True
+            UserKey scope -> case scope of
+                Global -> True
+                Local -> False
+            UndefinedKey -> False
+        in fmap (canOpenAnywhere &&) $ hasOpenedSeg
     withOpenStack $ (:) $ OpenSeg $ SegByKey key
     advance rest $ if needsCloseSeg
         then closeSegmentToks ++ prefix
@@ -188,6 +214,34 @@ handleNonSegClose nonSegKind = do
             else opens
         _ -> opens
     continue
+
+
+handleRenumberKey :: Integer -> String -> Flattener [SyntaxToken Hoops]
+handleRenumberKey intKey scopeStr = do
+    case mScope of
+        Just scope -> modify $ \st -> let
+            f = Map.insertWith' (\new old -> nub $ new ++ old) key [scope]
+            in st { userKeys = f $ userKeys st  }
+        Nothing -> return ()
+    continue
+    where
+        key = mkKey intKey
+        mScope = case scopeStr of
+            'g' : _ -> Just Global
+            'l' : _ -> Just Local
+            _ -> Nothing
+
+
+getKeyKind :: Key -> Flattener KeyKind
+getKeyKind key = if isUserKey key
+    then do
+        mScopes <- gets $ Map.lookup key . userKeys
+        return $ case mScopes of
+            Just scopes -> UserKey $ if Local `elem` scopes
+                then Local
+                else Global
+            Nothing -> UndefinedKey
+    else return SystemKey
 
 
 viewOpenSeg :: OpenKind -> Maybe Segment
