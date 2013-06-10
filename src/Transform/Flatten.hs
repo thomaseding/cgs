@@ -38,8 +38,11 @@ data Segment
 type NonSegmentKind = String
 
 
+type OpenSegInfo = (Segment, Maybe Segment) -- (Maybe Segment) is the segment closed when opening (Segment)
+
+
 data OpenKind
-    = OpenSeg Segment
+    = OpenSeg OpenSegInfo
     | OpenNonSeg NonSegmentKind
 
 
@@ -97,9 +100,9 @@ flattenM = let
             [] -> return []
         in local (const cont) $ case tokens of
             (defOpenSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> do
-                handleDefOpenSegment prefix path rest
+                handleOpenSegment prefix path rest
             (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key key), Ext (SegPath path)] rest) -> do
-                handleDefOpenSegmentKeyByKey prefix key path rest
+                handleOpenSegmentKeyByKey prefix key path rest
             (openSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> do
                 handleOpenSegment prefix path rest
             (openSegmentByKey -> PrefixCapturesRest prefix [Ext (Key key)] rest) -> do
@@ -115,45 +118,11 @@ flattenM = let
             _ -> continue
 
 
-handleDefOpenSegment :: [SyntaxToken Hoops] -> SegPath -> [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
-handleDefOpenSegment prefix path rest = do
-    needsCloseSeg <- fmap (isAbsolute path &&) hasOpenedSeg
-    withOpenStack $ (:) $ OpenSeg $ SegByPath path
-    advance rest $ if needsCloseSeg
-        then closeSegmentToks ++ prefix
-        else prefix
-
-
-handleDefOpenSegmentKeyByKey :: [SyntaxToken Hoops] -> Key -> SegPath -> [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
-handleDefOpenSegmentKeyByKey prefix key path rest = do
-    needsCloseSeg <- fmap (not (isUserKey key) &&) $ hasOpenedSeg
-    withOpenStack $ (:) $ OpenSeg $ SegByKeyByPath key path
-    advance rest $ if needsCloseSeg
-        then closeSegmentToks ++ prefix
-        else prefix
-
-
 handleOpenSegment :: [SyntaxToken Hoops] -> SegPath -> [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
 handleOpenSegment prefix path rest = do
-    needsCloseSeg <- fmap (isAbsolute path &&) hasOpenedSeg
-    withOpenStack $ (:) $ OpenSeg $ SegByPath path
-    advance rest $ if needsCloseSeg
-        then closeSegmentToks ++ prefix
-        else prefix
-
-
-handleOpenSegmentByKey :: [SyntaxToken Hoops] -> Key -> [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
-handleOpenSegmentByKey prefix key rest = do
-    keyKind <- getKeyKind key
-    needsCloseSeg <- let
-        canOpenAnywhere = case keyKind of
-            SystemKey -> True
-            UserKey scope -> case scope of
-                Global -> True
-                Local -> False
-            UndefinedKey -> False
-        in fmap (canOpenAnywhere &&) $ hasOpenedSeg
-    withOpenStack $ (:) $ OpenSeg $ SegByKey key
+    mOpenSegInfo <- getOpenSegInfo
+    let needsCloseSeg = isAbsolute path && isJust mOpenSegInfo
+    withOpenStack $ (:) $ OpenSeg (SegByPath path, guard needsCloseSeg >> fmap fst mOpenSegInfo)
     advance rest $ if needsCloseSeg
         then closeSegmentToks ++ prefix
         else prefix
@@ -161,8 +130,33 @@ handleOpenSegmentByKey prefix key rest = do
 
 handleOpenSegmentKeyByKey :: [SyntaxToken Hoops] -> Key -> SegPath -> [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
 handleOpenSegmentKeyByKey prefix key path rest = do
-    needsCloseSeg <- fmap (not (isUserKey key) &&) $ hasOpenedSeg
-    withOpenStack $ (:) $ OpenSeg $ SegByKeyByPath key path
+    mOpenSegInfo <- getOpenSegInfo
+    keyKind <- getKeyKind key
+    let needsCloseSeg = canOpenAnywhere && isJust mOpenSegInfo
+        canOpenAnywhere = case keyKind of
+            SystemKey -> True
+            UserKey scope -> case scope of
+                Global -> True
+                Local -> False
+            UndefinedKey -> False
+    withOpenStack $ (:) $ OpenSeg (SegByKeyByPath key path, guard needsCloseSeg >> fmap fst mOpenSegInfo)
+    advance rest $ if needsCloseSeg
+        then closeSegmentToks ++ prefix
+        else prefix
+
+
+handleOpenSegmentByKey :: [SyntaxToken Hoops] -> Key -> [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
+handleOpenSegmentByKey prefix key rest = do
+    mOpenSegInfo <- getOpenSegInfo
+    keyKind <- getKeyKind key
+    let needsCloseSeg = canOpenAnywhere && isJust mOpenSegInfo
+        canOpenAnywhere = case keyKind of
+            SystemKey -> True
+            UserKey scope -> case scope of
+                Global -> True
+                Local -> False
+            UndefinedKey -> False
+    withOpenStack $ (:) $ OpenSeg (SegByKey key, guard needsCloseSeg >> fmap fst mOpenSegInfo)
     advance rest $ if needsCloseSeg
         then closeSegmentToks ++ prefix
         else prefix
@@ -170,23 +164,17 @@ handleOpenSegmentKeyByKey prefix key path rest = do
 
 handleCloseSegment :: [SyntaxToken Hoops] -> [SyntaxToken Hoops] -> Flattener [SyntaxToken Hoops]
 handleCloseSegment prefix rest = do
-    mOldSeg <- gets $ viewOpenSeg <=< listToMaybe . openStack
-    advance rest =<< case mOldSeg of
-        Just oldSeg -> do
-            let mOldPath = case oldSeg of
-                    SegByPath oldPath -> Just oldPath
-                    _ -> Nothing
+    mOldSegInfo <- getOpenSegInfo
+    advance rest =<< case mOldSegInfo of
+        Just (_, mSegToOpen) -> do
             withOpenStack tail
-            mCurrOpen <- gets $ listToMaybe . openStack
-            case mCurrOpen of
-                Just (OpenSeg seg) -> return $ (prefix ++) $ case seg of
-                    SegByPath path -> if fmap isRelative mOldPath == Just True
-                        then []
-                        else openSegmentToks path
+            case mSegToOpen of
+                Just seg -> return $ (prefix ++) $ case seg of
+                    SegByPath path -> openSegmentToks path
                     SegByKey key -> openSegmentByKeyToks key
                     SegByKeyByPath key path -> openSegmentKeyByKeyToks key path
-                _ -> return prefix
-        _ -> return prefix
+                Nothing -> return prefix
+        Nothing -> return prefix
 
 
 handleHcCall :: String -> Flattener [SyntaxToken Hoops]
@@ -244,14 +232,14 @@ getKeyKind key = if isUserKey key
     else return SystemKey
 
 
-viewOpenSeg :: OpenKind -> Maybe Segment
-viewOpenSeg kind = case kind of
-    OpenSeg seg -> Just seg
+viewOpenSegInfo :: OpenKind -> Maybe OpenSegInfo
+viewOpenSegInfo kind = case kind of
+    OpenSeg openInfo -> Just openInfo
     _ -> Nothing
 
 
-hasOpenedSeg :: Flattener Bool
-hasOpenedSeg = gets $ isJust . (viewOpenSeg <=< listToMaybe . openStack)
+getOpenSegInfo :: Flattener (Maybe OpenSegInfo)
+getOpenSegInfo = gets $ viewOpenSegInfo <=< listToMaybe . openStack
 
 
 openSegmentToks :: SegPath -> [SyntaxToken Hoops]
