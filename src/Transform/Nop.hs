@@ -27,10 +27,10 @@ p = Punctuation . punc
 data Status = Changed | Unchanged
 
 
-removeNopPairs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
+removeNopPairs :: [SyntaxToken Hoops] -> Maybe [SyntaxToken Hoops]
 removeNopPairs toks = case flip runState Unchanged $ removeNopPairsM toks of
-    (newToks, Changed) -> removeNopPairs newToks
-    (newToks, Unchanged) -> newToks
+    (newToks, Changed) -> Just newToks
+    (_, Unchanged) -> Nothing
 
 
 removeNopPairsM :: [SyntaxToken Hoops] -> State Status [SyntaxToken Hoops]

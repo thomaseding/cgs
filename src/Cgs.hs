@@ -32,14 +32,18 @@ additionalIndent = untag . (indent KeepOldTabs :: String -> Tagged CodeGen Strin
 
 cgs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
 cgs = id
-    -- does this need to continuously (removeNopPairs . merge) until a fixed point is found?
-    . removeNopPairs
+    . iterateMaybe (fmap merge . removeNopPairs)
     . merge
-    . removeNopPairs
     . flatten
     . removeUnusedDefines
-    . removeNopPairs
+    . iterateMaybe removeNopPairs
     . expand
+
+
+iterateMaybe :: (a -> Maybe a) -> a -> a
+iterateMaybe f x = case f x of
+    Nothing -> x
+    Just y -> iterateMaybe f y
 
 
 lexCode :: Code -> IO [SyntaxToken Hoops]
