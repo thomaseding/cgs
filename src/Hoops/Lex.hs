@@ -100,7 +100,7 @@ keys = let
     mkLookup k1 mK2 = i "LOOKUP" : p "(" : Ext (Key $ mkKey' k1 mK2) : p ")" : []
     mkDefine prefix k1 mK2 = let
         dropAmount = maybe 2 (const 4) mK2
-        in dropEnd dropAmount prefix ++ [Ext $ Key $ mkKey' k1 mK2, p ")"]
+        in keys $ dropEnd dropAmount prefix ++ [Ext $ Key $ mkKey' k1 mK2, p ")"]
     in \toks -> case toks of
         (lookup1 -> CapturesRest [Integer k] rest) -> mkLookup k Nothing ++ keys rest
         (lookup2 -> CapturesRest [Integer k1, Integer k2] rest) -> mkLookup k1 (Just k2) ++ keys rest
