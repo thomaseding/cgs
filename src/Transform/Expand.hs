@@ -103,6 +103,7 @@ expandM = let
     defCreateSegment = match "DEFINE(HC_Create_Segment($path),$key)"
     defCreateSegmentKeyByKey = match "DEFINE(HC_Create_Segment_Key_By_Key(LOOKUP($key),$path),$key)"
     defOpenSegment = match "DEFINE(HC_Open_Segment($path),$key)"
+    openSegment = match "HC_Open_Segment($path)"
     defOpenSegmentKeyByKey = match "DEFINE(HC_Open_Segment_Key_By_Key(LOOKUP($key),$path),$key)"
     openSegmentByKey = match "HC_Open_Segment_By_Key(LOOKUP($key))"
     closeSegment = match "HC_Close_Segment()"
@@ -126,7 +127,9 @@ expandM = let
             (defCreateSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key parentKey), Ext (SegPath childPath), Ext (Key defKey)] rest) -> do
                 handleDefCreateSegmentKeyByKey prefix parentKey childPath defKey rest
             (defOpenSegment -> PrefixCapturesRest prefix [Ext (SegPath path), Ext (Key key)] rest) -> do
-                handleDefOpenSegment prefix path key rest
+                handleDefOpenSegment prefix path (Just key) rest
+            (openSegment -> PrefixCapturesRest prefix [Ext (SegPath path)] rest) -> do
+                handleDefOpenSegment prefix path Nothing rest
             (defOpenSegmentKeyByKey -> PrefixCapturesRest prefix [Ext (Key parentKey), Ext (SegPath childPath), Ext (Key defKey)] rest) -> do
                 handleDefOpenSegmentKeyByKey prefix parentKey childPath defKey rest
             (openSegmentByKey -> CapturesRest [Ext (Key key)] rest) -> do
@@ -166,11 +169,15 @@ handleDefCreateSegmentKeyByKey prefix parentKey childPath defKey rest = do
             advance prefix rest
 
 
-handleDefOpenSegment :: [SyntaxToken Hoops] -> SegPath -> Key -> [SyntaxToken Hoops] -> Expander [SyntaxToken Hoops]
-handleDefOpenSegment prefix path key rest = do
+handleDefOpenSegment :: [SyntaxToken Hoops] -> SegPath -> Maybe Key -> [SyntaxToken Hoops] -> Expander [SyntaxToken Hoops]
+handleDefOpenSegment prefix path mKey rest = do
     prefix' <- expandPaths prefix
-    recordDef path key Global
-    openSeg $ SegmentKeyPath key path
+    case mKey of
+        Just key -> do
+            recordDef path key Global
+            openSeg $ SegmentKeyPath key path
+        Nothing -> do
+            openSeg $ SegmentPath path
     advance rest prefix'
 
 
