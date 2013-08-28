@@ -1,33 +1,21 @@
 {-# LANGUAGE ViewPatterns #-}
 
-module Extract (
+module Transform.Extract (
       extract
     ) where
 
 
-import Control.Monad.State.Lazy
 import Data.Maybe (mapMaybe)
 import Hoops.Match
 import Hoops.SyntaxToken
 import Language.Cpp.SyntaxToken
+import Transform.Extract.Common
 
 
-type BlockKind = String
+import qualified Transform.Extract.Shell
+
+
 type Index = Integer
-type ExtractFunc = BlockKind -> [SyntaxToken Hoops] -> Maybe ([SyntaxToken Hoops], ExtractedData)
-type Extractor = State ExtractState
-
-
-data ExtractedData = ExtractedData {
-      tagName :: String -- uniquely identifies this extracted data
-    , theData :: String
-    }
-    deriving (Show)
-
-
-data ExtractState = ExtractState {
-      extractedDatas :: [ExtractedData]
-    }
 
 
 data Tokens
@@ -36,17 +24,14 @@ data Tokens
     deriving (Show)
 
 
-extractors :: [ExtractFunc]
-extractors = []
+extractors :: [BlockKind -> ExtractFunc]
+extractors = [
+      Transform.Extract.Shell.extractor
+    ]
 
 
-extract :: [SyntaxToken Hoops] -> ([SyntaxToken Hoops], [ExtractedData])
-extract = massage . flip runState st . mapM extractM . blockify 
-    where
-        massage (tokens, state) = (unblockify tokens, extractedDatas state)
-        st = ExtractState {
-              extractedDatas = []
-            }
+extract :: FilePath -> [SyntaxToken Hoops] -> IO [SyntaxToken Hoops]
+extract basePath = fmap unblockify . runExtractor basePath . mapM extractM . blockify 
 
 
 extractM :: Tokens -> Extractor Tokens
@@ -54,18 +39,16 @@ extractM tokens = case tokens of
     Free ts -> return $ Free ts
     block@(Block mKind ts) -> case mKind of
         Nothing -> return block
-        Just kind -> case runExtractors kind ts extractors of
+        Just kind -> case runExtractors extractors kind ts of
             Nothing -> return block
-            Just (newToks, extractedData) -> do
-                modify $ \st -> st { extractedDatas = extractedData : extractedDatas st }
-                return $ Block Nothing newToks
+            Just extractor -> fmap (Block Nothing) extractor
 
 
-runExtractors :: BlockKind -> [SyntaxToken Hoops] -> [ExtractFunc] -> Maybe ([SyntaxToken Hoops], ExtractedData)
-runExtractors kind tokens es = case es of
+runExtractors :: [BlockKind -> ExtractFunc] -> BlockKind -> ExtractFunc
+runExtractors es kind tokens = case es of
     e : es' -> case e kind tokens of
         Just res -> Just res
-        Nothing -> runExtractors kind tokens es'
+        Nothing -> runExtractors es' kind tokens
     [] -> Nothing
 
 
