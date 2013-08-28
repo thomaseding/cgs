@@ -39,17 +39,21 @@ extractM tokens = case tokens of
     Free ts -> return $ Free ts
     block@(Block mKind ts) -> case mKind of
         Nothing -> return block
-        Just kind -> case runExtractors extractors kind ts of
-            Nothing -> return block
-            Just extractor -> fmap (Block Nothing) extractor
+        Just kind -> do
+            mRes <- runExtractors extractors kind ts
+            case mRes of
+                Nothing -> return block
+                Just newToks -> return $ Block Nothing newToks
 
 
-runExtractors :: [BlockKind -> ExtractFunc] -> BlockKind -> ExtractFunc
-runExtractors es kind tokens = case es of
-    e : es' -> case e kind tokens of
-        Just res -> Just res
-        Nothing -> runExtractors es' kind tokens
-    [] -> Nothing
+runExtractors :: [BlockKind -> ExtractFunc] -> BlockKind -> [SyntaxToken Hoops] -> Extractor (Maybe [SyntaxToken Hoops])
+runExtractors es kind toks = case es of
+    e : es' -> do
+        mRes <- e kind toks
+        case mRes of
+            Just newToks -> return $ Just newToks
+            Nothing -> runExtractors es' kind toks
+    [] -> return Nothing
 
 
 braceIndices :: [SyntaxToken Hoops] -> [Either Index Index]

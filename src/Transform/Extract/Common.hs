@@ -20,7 +20,9 @@ import System.IO
 
 
 type BlockKind = String
-type ExtractFunc = [SyntaxToken Hoops] -> Maybe (Extractor [SyntaxToken Hoops])
+type NamePrefix = String
+type Extension = String
+type ExtractFunc = [SyntaxToken Hoops] -> Extractor (Maybe [SyntaxToken Hoops])
 
 
 type EntryId = Int
@@ -56,20 +58,20 @@ data Entry = Entry {
     deriving (Show)
 
 
-newEntry :: String -> Extractor Entry
-newEntry entryPrefix = Extractor $ do
+newEntry :: NamePrefix -> Extension -> Extractor Entry
+newEntry entryPrefix ext = Extractor $ do
     basePath <- gets entryBasePath
     entId <- gets nextEntryId
     modify $ \st -> st { nextEntryId = entId + 1 }
-    let path = basePath </> (entryPrefix ++ "-" ++ show entId)
+    let path = basePath </> (entryPrefix ++ "-" ++ show entId ++ "." ++ ext)
     handle <- liftIO $ openFile path WriteMode
     let entry = Entry { entryHandle = handle, entryPath = path }
     return entry
 
 
-scopedEntry :: String -> (Entry -> Extractor a) -> Extractor a
-scopedEntry entryPrefix f = do
-    entry <- newEntry entryPrefix
+scopedEntry :: NamePrefix -> Extension -> (Entry -> Extractor a) -> Extractor a
+scopedEntry entryPrefix ext f = do
+    entry <- newEntry entryPrefix ext
     res <- f entry
     Extractor $ liftIO $ hClose $ entryHandle entry
     return res
