@@ -7,10 +7,13 @@ import Data.Tagged
 import Hoops.Lex
 import Hoops.SyntaxToken
 import Language.Cpp.Pretty
+import System.Directory (getCurrentDirectory, createDirectoryIfMissing)
 import System.Environment
 import System.Exit
+import System.FilePath ((</>))
 import Text.Indent
 import Transform.Expand
+import Transform.Extract
 import Transform.Flatten
 import Transform.Merge
 import Transform.Nop
@@ -23,11 +26,20 @@ main = do
         [] -> getContents >>= lexCode
         [file] -> readFile file >>= lexCode
         _ -> exitFailure
-    putStrLn $ additionalIndent $ pretty expandHoops $ cgs toks
+    toks' <- runExtract toks
+    putStrLn $ additionalIndent $ pretty expandHoops $ cgs toks'
 
 
 additionalIndent :: String -> String
 additionalIndent = untag . (indent KeepOldTabs :: String -> Tagged CodeGen String)
+
+
+runExtract :: [SyntaxToken Hoops] -> IO [SyntaxToken Hoops]
+runExtract toks = do
+    cwd <- getCurrentDirectory
+    let extractDir = cwd </> "extract"
+    createDirectoryIfMissing True extractDir
+    extract extractDir toks
 
 
 cgs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]

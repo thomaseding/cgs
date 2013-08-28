@@ -6,8 +6,10 @@ module Transform.Extract.Common (
     , Extractor
     , runExtractor
     , Entry
+    , entryPath
     , scopedEntry
     , tellEntry
+    , cgsReadMetafile
     ) where
 
 
@@ -49,6 +51,7 @@ runExtractor basePath extractor = do
 
 data Entry = Entry {
       entryHandle :: Handle
+    , entryPath :: FilePath
     }
     deriving (Show)
 
@@ -60,7 +63,7 @@ newEntry entryPrefix = Extractor $ do
     modify $ \st -> st { nextEntryId = entId + 1 }
     let path = basePath </> (entryPrefix ++ "-" ++ show entId)
     handle <- liftIO $ openFile path WriteMode
-    let entry = Entry { entryHandle = handle }
+    let entry = Entry { entryHandle = handle, entryPath = path }
     return entry
 
 
@@ -73,9 +76,18 @@ scopedEntry entryPrefix f = do
 
 
 tellEntry :: Entry -> String -> Extractor ()
-tellEntry (Entry handle) str = Extractor $ do
-    liftIO $ hPutStr handle str
+tellEntry entry str = Extractor $ do
+    liftIO $ hPutStr (entryHandle entry) str
 
+
+cgsReadMetafile :: FilePath -> Maybe Key -> [SyntaxToken Hoops]
+cgsReadMetafile path mKey = case mKey of
+    Nothing -> [i "CGS_Read_Metafile", p "(", s path, p ")", p ";"]
+    Just key -> [i "DEFINE", p "(", i "CGS_Read_Metafile", p "(", s path, p ")", p ",", Ext $ Key key, p ")", p ";"]
+    where
+        s = String
+        i = Identifier
+        p = Punctuation . punc
 
 
 
