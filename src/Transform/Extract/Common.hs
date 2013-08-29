@@ -1,16 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Transform.Extract.Common (
-      BlockKind
-    , ExtractFunc
-    , Extractor
-    , runExtractor
-    , Entry
-    , entryPath
-    , scopedEntry
-    , tellEntry
-    , cgsReadMetafile
-    ) where
+    BlockKind,
+    ExtractFunc,
+    Extractor,
+    runExtractor,
+    Entry,
+    entryPath,
+    scopedEntry,
+    tellEntry
+) where
 
 
 import Control.Monad.State.Lazy
@@ -29,33 +28,28 @@ type EntryId = Int
 
 
 data ExtractorState = ExtractorState {
-      entryBasePath :: FilePath
-    , nextEntryId :: EntryId
-    }
+    entryBasePath :: FilePath,
+    nextEntryId :: EntryId
+}
 
 
 newtype Extractor a = Extractor {
-      unExtractor :: StateT ExtractorState IO a
-    }
-    deriving (Functor, Monad)
+    unExtractor :: StateT ExtractorState IO a
+} deriving (Functor, Monad)
 
 
 runExtractor :: FilePath -> Extractor a -> IO a
-runExtractor basePath extractor = do
-    (res, _) <- flip runStateT st $ unExtractor extractor
-    return res
+runExtractor basePath = flip evalStateT st . unExtractor
     where
         st = ExtractorState {
-              entryBasePath = basePath
-            , nextEntryId = 0
-            }
+            entryBasePath = basePath,
+            nextEntryId = 0 }
 
 
 data Entry = Entry {
-      entryHandle :: Handle
-    , entryPath :: FilePath
-    }
-    deriving (Show)
+    entryHandle :: Handle,
+    entryPath :: FilePath
+} deriving (Show)
 
 
 newEntry :: NamePrefix -> Extension -> Extractor Entry
@@ -80,17 +74,6 @@ scopedEntry entryPrefix ext f = do
 tellEntry :: Entry -> String -> Extractor ()
 tellEntry entry str = Extractor $ do
     liftIO $ hPutStr (entryHandle entry) str
-
-
-cgsReadMetafile :: FilePath -> Maybe Key -> [SyntaxToken Hoops]
-cgsReadMetafile path mKey = case mKey of
-    Nothing -> [i "CGS_Read_Metafile", p "(", s path, p ")", p ";"]
-    Just key -> [i "DEFINE", p "(", i "CGS_Read_Metafile", p "(", s path, p ")", p ",", Ext $ Key key, p ")", p ";"]
-    where
-        s = String
-        i = Identifier
-        p = Punctuation . punc
-
 
 
 

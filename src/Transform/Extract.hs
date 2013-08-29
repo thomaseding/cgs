@@ -37,44 +37,41 @@ extract basePath = fmap unblockify . runExtractor basePath . mapM extractM . blo
 extractM :: Tokens -> Extractor Tokens
 extractM tokens = case tokens of
     Free ts -> return $ Free ts
-    block@(Block mKind ts) -> case mKind of
+    block@(Block mKind toks) -> case mKind of
         Nothing -> return block
         Just kind -> do
-            mRes <- runExtractors extractors kind ts
-            case mRes of
+            mToks' <- firstM (map uncurry extractors) (kind, toks)
+            case mToks' of
                 Nothing -> return block
-                Just newToks -> return $ Block Nothing newToks
+                Just toks' -> return $ Block Nothing toks'
 
 
-runExtractors :: [BlockKind -> ExtractFunc] -> BlockKind -> [SyntaxToken Hoops] -> Extractor (Maybe [SyntaxToken Hoops])
-runExtractors es kind toks = case es of
-    e : es' -> do
-        mRes <- e kind toks
-        case mRes of
-            Just newToks -> return $ Just newToks
-            Nothing -> runExtractors es' kind toks
+firstM :: Monad m => [a -> m (Maybe b)] -> (a -> m (Maybe b))
+firstM fs x = case fs of
+    f : fs' -> do
+        mY <- f x
+        case mY of
+            Nothing -> firstM fs' x
+            Just _ -> return mY
     [] -> return Nothing
 
 
 braceIndices :: [SyntaxToken Hoops] -> [Either Index Index]
-braceIndices = braceIndices' . zip [0 ..]
-
-
-braceIndices' :: [(Index, SyntaxToken Hoops)] -> [Either Index Index]
-braceIndices' toks = case toks of
-    (idx, Punctuation symbol) : rest -> case unpunc symbol of
-        "{" -> Left idx : braceIndices' rest
-        "}" -> Right idx : braceIndices' rest
-        _ -> braceIndices' rest
-    _ : rest -> braceIndices' rest
-    [] -> []
+braceIndices = mapMaybe f . zip [0 ..]
+    where
+        f (idx, tok) = case tok of
+            Punctuation symbol -> case unpunc symbol of
+                "{" -> Just $ Left idx
+                "}" -> Just $ Right idx
+                _ -> Nothing
+            _ -> Nothing
 
 
 deepBraceIndices :: [SyntaxToken Hoops] -> [(Index, Index)]
-deepBraceIndices toks = mapMaybe massage $ zip idxs (drop 1 idxs)
+deepBraceIndices toks = mapMaybe f $ zip idxs (drop 1 idxs)
     where
         idxs = braceIndices toks
-        massage pair = case pair of
+        f pair = case pair of
             (Left i, Right j) -> Just (i, j)
             _ -> Nothing
 
