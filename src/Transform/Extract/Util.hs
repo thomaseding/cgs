@@ -20,11 +20,11 @@ module Transform.Extract.Util (
     ListsExtractFunc,
     runListsExtractor,
     evalListsExtractor,
-    getList,
     modifyPoints,
     modifyFaces,
     modifyString,
     modifyIntegers,
+    gets,
     lift
 ) where
 
@@ -97,7 +97,7 @@ type ListsExtractFunc phantom = [SyntaxToken Hoops] -> ListsExtractor phantom (M
 
 newtype ListsStateT phantom m a = ListsStateT {
     unListsStateT :: StateT (Lists phantom) m a
-} deriving (Functor, Monad, MonadTrans)
+} deriving (Functor, Monad, MonadTrans, MonadState (Lists phantom))
 
 
 runListsExtractor :: ListsExtractor phantom a -> Extractor (a, Lists phantom)
@@ -110,21 +110,23 @@ evalListsExtractor :: ListsExtractor phantom a -> Extractor a
 evalListsExtractor = fmap fst . runListsExtractor
 
 
-getList :: (Lists phantom -> a) -> ListsExtractor phantom a
-getList f = ListsStateT $ gets f
-
-
 modifyPoints :: ([Point] -> [Point]) -> ListsExtractor (PointsT' a b c) ()
-modifyPoints f = ListsStateT $ modify $ \st -> st { listPoints = f $ listPoints st }
+modifyPoints f = modify $ \st -> st { listPoints = f $ listPoints st }
 
 modifyFaces :: ([FaceIndex] -> [FaceIndex]) -> ListsExtractor (FacesT' a b c) ()
-modifyFaces f = ListsStateT $ modify $ \st -> st { listFaces = f $ listFaces st }
+modifyFaces f = modify $ \st -> st { listFaces = f $ listFaces st }
 
 modifyString :: (String -> String) -> ListsExtractor (StringT' a b c) ()
-modifyString f = ListsStateT $ modify $ \st -> st { listString = f $ listString st }
+modifyString f = modify $ \st -> st { listString = f $ listString st }
 
 modifyIntegers :: ([Integer] -> [Integer]) -> ListsExtractor (IntegersT' a b c) ()
-modifyIntegers f = ListsStateT $ modify $ \st -> st { listIntegers = f $ listIntegers st }
+modifyIntegers f = modify $ \st -> st { listIntegers = f $ listIntegers st }
+
+
+
+
+
+
 
 
 

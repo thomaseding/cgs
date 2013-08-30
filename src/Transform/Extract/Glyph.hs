@@ -34,7 +34,7 @@ extract = let
         [] -> return $ Just $ cgsReadMetafile (entryPath entry) Nothing
     in \tokens -> scopedEntry "glyph" "hmf" $ \entry -> evalListsExtractor $ do
         res <- go entry tokens
-        vals <- fmap reverse $ getList integers
+        vals <- fmap reverse $ gets integers
         lift $ do
             tellEntry entry $ unwords $ map show vals
             tellEntry entry "))"

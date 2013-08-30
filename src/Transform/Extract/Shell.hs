@@ -30,8 +30,8 @@ extract = let
             modifyFaces $ (idx :)
             extract rest
         (define -> Captures [Ext (Key key)]) -> do
-            ps <- getList points
-            fs <- getList faces
+            ps <- gets points
+            fs <- gets faces
             path <- lift $ scopedEntry "shell" "hmf" $ \entry -> do
                 tellEntry entry $ toHmf ps fs
                 return $ entryPath entry
