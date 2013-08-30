@@ -5,6 +5,7 @@ module Transform.Extract (
     ) where
 
 
+import Data.Char (isLower)
 import Data.Maybe (mapMaybe)
 import Hoops.Match
 import Hoops.SyntaxToken
@@ -12,6 +13,8 @@ import Language.Cpp.SyntaxToken
 import Transform.Extract.Common
 
 
+import qualified Transform.Extract.Camera
+import qualified Transform.Extract.Glyph
 import qualified Transform.Extract.Shell
 
 
@@ -26,8 +29,9 @@ data Tokens
 
 extractors :: [BlockKind -> ExtractFunc]
 extractors = [
-      Transform.Extract.Shell.extractor
-    ]
+    Transform.Extract.Camera.extractor,
+    Transform.Extract.Glyph.extractor,
+    Transform.Extract.Shell.extractor ]
 
 
 extract :: FilePath -> [SyntaxToken Hoops] -> IO [SyntaxToken Hoops]
@@ -98,12 +102,12 @@ blockify' idxs toks = case idxs of
 
 
 blockKind :: [SyntaxToken Hoops] -> Maybe BlockKind
-blockKind = let
-    defVar = match "DEFINE($var"
-    in \tokens -> case tokens of
-        (defVar -> Captures [Identifier name]) -> Just name
-        _ : rest -> blockKind rest
-        [] -> Nothing
+blockKind tokens = case tokens of
+    (Identifier name@('H':'C':'_':_:c:_)) : rest -> if isLower c
+        then Just name
+        else blockKind rest
+    _ : rest -> blockKind rest
+    [] -> Nothing
 
 
 unblockify :: [Tokens] -> [SyntaxToken Hoops]
