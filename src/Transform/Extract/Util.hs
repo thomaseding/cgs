@@ -6,20 +6,21 @@ module Transform.Extract.Util (
     double,
     Point,
     FaceIndex,
-    PointT,
-    FaceT,
     PointsT,
     FacesT,
     PointsFacesT,
+    StringT,
     Lists,
     points,
     faces,
+    string,
     ListsExtractor,
     runListsExtractor,
     evalListsExtractor,
     getList,
     modifyPoints,
     modifyFaces,
+    modifyString,
     lift
 ) where
 
@@ -50,27 +51,38 @@ type Point = (Double, Double, Double)
 type FaceIndex = Integer
 
 
-data PointT
-data FaceT
+data X
 
 
-type PointsT = (PointT, ())
-type FacesT = ((), FaceT)
-type PointsFacesT = (PointT, FaceT)
+type PointsT'       b c = (X, b, c)
+type FacesT'        a c = (a, X, c)
+type PointsFacesT'    c = (X, X, c)
+type StringT'       a b = (a, b, X)
+
+
+type PointsT        = PointsT' () ()
+type FacesT         = FacesT' () ()
+type PointsFacesT   = PointsFacesT' ()
+type StringT        = StringT' () ()
 
 
 data Lists phantom = Lists {
     listPoints :: [Point],
-    listFaces :: [FaceIndex]
+    listFaces :: [FaceIndex],
+    listString :: String
 } deriving (Show)
 
 
-points :: Lists (PointT, face) -> [Point]
+points :: Lists (PointsT' a b) -> [Point]
 points = listPoints
 
 
-faces :: Lists (point, FaceT) -> [FaceIndex]
+faces :: Lists (FacesT' a b) -> [FaceIndex]
 faces = listFaces
+
+
+string :: Lists (StringT' a b) -> String
+string = listString
 
 
 type ListsExtractor phantom a = ListsStateT phantom Extractor a
@@ -84,7 +96,7 @@ newtype ListsStateT phantom m a = ListsStateT {
 runListsExtractor :: ListsExtractor phantom a -> Extractor (a, Lists phantom)
 runListsExtractor = flip runStateT st . unListsStateT
     where
-        st = Lists [] []
+        st = Lists [] [] []
 
 
 evalListsExtractor :: ListsExtractor phantom a -> Extractor a
@@ -95,16 +107,16 @@ getList :: (Lists phantom -> a) -> ListsExtractor phantom a
 getList f = ListsStateT $ gets f
 
 
-modifyPoints :: ([Point] -> [Point]) -> ListsExtractor (PointT, face) ()
+modifyPoints :: ([Point] -> [Point]) -> ListsExtractor (PointsT' a b) ()
 modifyPoints f = ListsStateT $ modify $ \st -> st { listPoints = f $ listPoints st }
 
 
-modifyFaces :: ([FaceIndex] -> [FaceIndex]) -> ListsExtractor (point, FaceT) ()
+modifyFaces :: ([FaceIndex] -> [FaceIndex]) -> ListsExtractor (FacesT' a b) ()
 modifyFaces f = ListsStateT $ modify $ \st -> st { listFaces = f $ listFaces st }
 
 
-
-
+modifyString :: (String -> String) -> ListsExtractor (StringT' a b) ()
+modifyString f = ListsStateT $ modify $ \st -> st { listString = f $ listString st }
 
 
 
