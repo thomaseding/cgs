@@ -17,7 +17,7 @@ extractor kind = case kind of
     _ -> const $ return Nothing
 
 
-extract :: [SyntaxToken Hoops] -> ListsExtractor PointsFacesT (Maybe [SyntaxToken Hoops])
+extract :: ListsExtractFunc PointsFacesT
 extract = let
     point = match "points[$!int].x = $num; points[$!int].y = $num; points[$!int].z = $num;"
     list = match "list[$!int] = $int;"
