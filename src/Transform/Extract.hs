@@ -45,10 +45,21 @@ extractM tokens = case tokens of
     block@(Block mKind toks) -> case mKind of
         Nothing -> return block
         Just kind -> do
-            mToks' <- firstM (map uncurry extractors) (kind, toks)
-            case mToks' of
-                Nothing -> return block
-                Just toks' -> return $ Block Nothing toks'
+            minStmts <- fmap minStmtRequirement getOptions
+            if countStmts toks < minStmts
+                then return block
+                else do
+                    mToks' <- firstM (map uncurry extractors) (kind, toks)
+                    case mToks' of
+                        Nothing -> return block
+                        Just toks' -> return $ Block Nothing toks'
+
+
+
+countStmts :: [SyntaxToken Hoops] -> Int
+countStmts = length . filter (== semi)
+    where
+        semi = Punctuation $ punc ";"
 
 
 firstM :: Monad m => [a -> m (Maybe b)] -> (a -> m (Maybe b))

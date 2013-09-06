@@ -29,7 +29,8 @@ type ExtractFunc = [SyntaxToken Hoops] -> Extractor (Maybe [SyntaxToken Hoops])
 type EntryId = Int
 
 
-data ExtractOptions = ExtractOptions {}
+data ExtractOptions = ExtractOptions {
+    minStmtRequirement :: Int }
 
 
 data ExtractorState = ExtractorState {
