@@ -1,10 +1,10 @@
 module Query.UsedKeys (
-      usedKeys
-    ) where
+    usedKeys
+) where
 
 
 import Control.Exception (assert)
-import Data.List hiding (lookup)
+import Data.List (stripPrefix)
 import Hoops.SyntaxToken
 import Prelude hiding (lookup)
 

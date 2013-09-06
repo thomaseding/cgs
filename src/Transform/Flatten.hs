@@ -1,16 +1,17 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Transform.Flatten (
-      flatten
-    ) where
+    flatten
+) where
 
 
-import Control.Monad.Reader
-import Control.Monad.State.Lazy
-import Data.List
+import Control.Monad ((<=<), guard)
+import Control.Monad.Reader (ReaderT, runReaderT, local, ask)
+import Control.Monad.State.Lazy (State, evalState, modify, gets)
+import Data.List (nub, stripPrefix)
 import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe
+import qualified Data.Map as Map (empty, insertWith', lookup)
+import Data.Maybe (isJust, listToMaybe)
 import Hoops.Match
 import Hoops.SyntaxToken
 

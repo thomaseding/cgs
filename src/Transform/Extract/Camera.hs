@@ -36,7 +36,7 @@ extract = let
         (up -> CapturesRest [double -> Just x, double -> Just y, double -> Just z] rest) -> do
             tellEntry entry $ showPoint (x, y, z)
             go entry rest
-        (fieldProj -> CapturesRest [double -> Just w, double -> Just h, String proj] rest) -> do
+        (fieldProj -> Captures [double -> Just w, double -> Just h, String proj]) -> do
             tellEntry entry $ "\n\t" ++ show w ++ "\n\t" ++ show h ++ "\n\t" ++ show proj ++ ")"
             return $ Just $ cgsReadMetafile (entryPath entry) Nothing
         _ : rest -> go entry rest

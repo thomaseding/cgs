@@ -4,27 +4,27 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Hoops.Match (
-      Match(..)
-    , Matcher
-    , Prefix(..)
-    , Captures(..)
-    , Rest(..)
-    , PrefixRest(..)
-    , PrefixCaptures(..)
-    , CapturesRest(..)
-    , PrefixCapturesRest(..)
-    , Detailed(..)
-    , DetailedRest(..)
-    ) where
+    Match(..),
+    Matcher,
+    Prefix(..),
+    Captures(..),
+    Rest(..),
+    PrefixRest(..),
+    PrefixCaptures(..),
+    CapturesRest(..),
+    PrefixCapturesRest(..),
+    Detailed(..),
+    DetailedRest(..)
+) where
 
 
-import Control.Monad.State.Strict
-import Data.Char
+import Control.Monad.State.Strict (State, runState, modify, gets)
+import Data.Char (isAlphaNum)
 import Data.DList (DList)
-import qualified Data.DList as DL
-import Data.Function
+import qualified Data.DList as DL (toList, snoc, empty)
+import Data.Function (on)
 import Hoops.SyntaxToken
-import Language.Cpp.Lex
+import Language.Cpp.Lex (runLexer)
 
 
 data Prefix

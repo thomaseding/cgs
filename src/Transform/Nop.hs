@@ -1,18 +1,18 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Transform.Nop (
-      removeNopPairs
-    , removeUnusedDefines
-    ) where
+    removeNopPairs,
+    removeUnusedDefines
+) where
 
 
-import Control.Monad.Reader
-import Control.Monad.State.Lazy
+import Control.Monad.Reader (Reader, runReader, asks)
+import Control.Monad.State.Lazy (State, runState, put)
 import Data.Set (Set)
-import qualified Data.Set as Set
+import qualified Data.Set as Set (fromList, member)
 import Hoops.Match
 import Hoops.SyntaxToken
-import Query.UsedKeys
+import Query.UsedKeys (usedKeys)
 
 
 

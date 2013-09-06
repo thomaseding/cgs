@@ -1,18 +1,18 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Transform.Expand (
-      expand
-    ) where
+    expand
+) where
 
 
-import Control.Monad.Reader
-import Control.Monad.State.Lazy
-import Data.Char
-import Data.List hiding (lookup)
+import Control.Monad.Reader (ReaderT, runReaderT, ask, local)
+import Control.Monad.State.Lazy (State, evalState, modify, gets)
+import Data.Char (toLower)
+import Data.List (stripPrefix)
 import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe
-import Data.Monoid
+import qualified Data.Map as Map (lookup, empty, mapKeys, insert)
+import Data.Maybe (listToMaybe)
+import Data.Monoid (Monoid(..))
 import Hoops.Match
 import Hoops.SyntaxToken
 import Prelude hiding (lookup, pred)

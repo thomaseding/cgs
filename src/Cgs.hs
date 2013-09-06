@@ -1,23 +1,23 @@
 module Cgs (
-      main
-    ) where
+    main
+) where
 
 
-import Cgs.Args
+import Cgs.Args (parseArgsIO, CgsOptions(..))
 import Control.Monad.Identity (runIdentity)
-import Data.Tagged
-import Hoops.Lex
+import Data.Tagged (untag)
+import Hoops.Lex (runLexer)
 import Hoops.SyntaxToken
-import Language.Cpp.Pretty
+import Language.Cpp.Pretty (pretty)
 import System.Directory (getCurrentDirectory, createDirectoryIfMissing)
-import System.Exit
+import System.Exit (exitFailure)
 import System.FilePath ((</>))
-import Text.Indent
-import Transform.Expand
-import Transform.Extract
-import Transform.Flatten
-import Transform.Merge
-import Transform.Nop
+import Text.Indent (indent, IndentMode(KeepOldTabs), Tagged, CodeGen)
+import Transform.Expand (expand)
+import Transform.Extract (extract, ExtractOptions)
+import Transform.Flatten (flatten)
+import Transform.Merge (merge)
+import Transform.Nop (removeNopPairs, removeUnusedDefines)
 
 
 main :: IO ()
@@ -65,10 +65,9 @@ iterateMaybe f x = case f x of
 
 
 lexCode :: Code -> IO [SyntaxToken Hoops]
-lexCode code = do
-    case runLexer code of
-        Left err -> print err >> exitFailure
-        Right ts -> return ts
+lexCode code = case runLexer code of
+    Left err -> print err >> exitFailure
+    Right ts -> return ts
 
 
 

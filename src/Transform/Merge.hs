@@ -1,13 +1,13 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Transform.Merge (
-      merge
-    ) where
+    merge
+) where
 
 
-import Control.Monad.State.Lazy
-import Data.List
-import Data.Maybe
+import Control.Monad.State.Lazy (State, evalState, gets, modify)
+import Data.List (stripPrefix)
+import Data.Maybe (listToMaybe)
 import Hoops.Match
 import Hoops.SyntaxToken
 

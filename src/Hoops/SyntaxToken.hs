@@ -1,18 +1,18 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Hoops.SyntaxToken (
-      module Language.Cpp.SyntaxToken
-    , module Hoops.SegPath
-    , Hoops(..)
-    , expandHoops
-    , Key
-    , MakeKey(mkKey)
-    , isUserKey
-    ) where
+    module Language.Cpp.SyntaxToken,
+    module Hoops.SegPath,
+    Hoops(..),
+    expandHoops,
+    Key,
+    MakeKey(mkKey),
+    isUserKey
+) where
 
 
 import Language.Cpp.SyntaxToken
-import Hoops.SegPath
+import Hoops.SegPath (SegPath, toString, mkSegPath, isAbsolute, expandAlias)
 
 
 data Hoops

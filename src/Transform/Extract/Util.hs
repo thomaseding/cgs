@@ -29,9 +29,10 @@ module Transform.Extract.Util (
 ) where
 
 
-import Control.Monad.State.Lazy
+import Control.Monad.State.Lazy (MonadState, StateT, runStateT, modify, gets)
+import Control.Monad.Trans (MonadTrans(..))
 import Hoops.SyntaxToken
-import Transform.Extract.Common
+import Transform.Extract.Common (Extractor)
 
 
 cgsReadMetafile :: FilePath -> Maybe Key -> [SyntaxToken Hoops]

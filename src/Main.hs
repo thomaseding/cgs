@@ -1,9 +1,9 @@
 module Main (
-      main
-    ) where
+    main
+) where
 
 
-import qualified Cgs
+import qualified Cgs (main)
 
 
 main :: IO ()

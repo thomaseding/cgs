@@ -1,19 +1,18 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Hoops.Lex (
-      runLexer
-    , C.ParseError
-    ) where
+    runLexer,
+    C.ParseError
+) where
 
 
 import Control.Exception (assert)
-import Data.Char
-import Data.List
-import Data.Ord
+import Data.Char (isUpper)
+import Data.List (sortBy, find, isPrefixOf)
+import Data.Ord (comparing)
 import Hoops.Match
-import Hoops.SegPath
 import Hoops.SyntaxToken
-import qualified Language.Cpp.Lex as C
+import qualified Language.Cpp.Lex as C (runLexer, ParseError)
 
 
 runLexer :: Code -> Either C.ParseError [SyntaxToken Hoops]

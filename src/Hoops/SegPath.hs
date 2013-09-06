@@ -1,26 +1,26 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Hoops.SegPath (
-      SegPath
-    , mkSegPath
-    , toString
-    , isAbsolute
-    , isRelative
-    , isFromRoot
-    , isFromAlias
-    , isFromKey
-    , expandAlias
-    ) where
+    SegPath,
+    mkSegPath,
+    toString,
+    isAbsolute,
+    isRelative,
+    isFromRoot,
+    isFromAlias,
+    isFromKey,
+    expandAlias
+) where
 
 
 import Control.Exception (assert)
-import Data.Char
-import Data.List
+import Data.Char (toLower, isSpace, isAlphaNum)
+import Data.List (intercalate)
 import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Monoid
+import qualified Data.Map as Map (lookup)
+import Data.Monoid (Monoid(..))
 import Text.Parsec
-import Text.Parsec.String
+import Text.Parsec.String (Parser)
 
 
 data SegPath

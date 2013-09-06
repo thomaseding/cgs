@@ -14,10 +14,11 @@ module Transform.Extract.Common (
 ) where
 
 
-import Control.Monad.State.Lazy
+import Control.Monad.State.Lazy (StateT, evalStateT, gets, modify)
+import Control.Monad.Trans (liftIO)
 import Hoops.SyntaxToken
-import System.FilePath
-import System.IO
+import System.FilePath ((</>))
+import System.IO (openFile, IOMode(WriteMode), hClose, Handle, hPutStr)
 
 
 type BlockKind = String

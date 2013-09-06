@@ -1,16 +1,14 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Transform.Extract (
-      extract
-    , ExtractOptions(..)
-    ) where
+    extract,
+    ExtractOptions(..)
+) where
 
 
 import Data.Char (isLower)
 import Data.Maybe (mapMaybe)
-import Hoops.Match
 import Hoops.SyntaxToken
-import Language.Cpp.SyntaxToken
 import Transform.Extract.Common
 
 
