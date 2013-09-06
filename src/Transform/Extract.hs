@@ -2,6 +2,7 @@
 
 module Transform.Extract (
       extract
+    , ExtractOptions(..)
     ) where
 
 
@@ -34,8 +35,8 @@ extractors = [
     Transform.Extract.Shell.extractor ]
 
 
-extract :: FilePath -> [SyntaxToken Hoops] -> IO [SyntaxToken Hoops]
-extract basePath = fmap unblockify . runExtractor basePath . mapM extractM . blockify 
+extract :: ExtractOptions -> FilePath -> [SyntaxToken Hoops] -> IO [SyntaxToken Hoops]
+extract opts basePath = fmap unblockify . runExtractor opts basePath . mapM extractM . blockify 
 
 
 extractM :: Tokens -> Extractor Tokens

@@ -39,7 +39,9 @@ runExtract toks = do
     cwd <- getCurrentDirectory
     let extractDir = cwd </> "extract"
     createDirectoryIfMissing True extractDir
-    extract extractDir toks
+    extract opts extractDir toks
+    where
+        opts = ExtractOptions {}
 
 
 cgs :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]

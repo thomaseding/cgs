@@ -4,11 +4,13 @@ module Transform.Extract.Common (
     BlockKind,
     ExtractFunc,
     Extractor,
+    ExtractOptions(..),
     runExtractor,
     Entry,
     entryPath,
     scopedEntry,
-    tellEntry
+    tellEntry,
+    getOptions
 ) where
 
 
@@ -27,9 +29,13 @@ type ExtractFunc = [SyntaxToken Hoops] -> Extractor (Maybe [SyntaxToken Hoops])
 type EntryId = Int
 
 
+data ExtractOptions = ExtractOptions {}
+
+
 data ExtractorState = ExtractorState {
     entryBasePath :: FilePath,
-    nextEntryId :: EntryId
+    nextEntryId :: EntryId,
+    options :: ExtractOptions
 }
 
 
@@ -38,12 +44,13 @@ newtype Extractor a = Extractor {
 } deriving (Functor, Monad)
 
 
-runExtractor :: FilePath -> Extractor a -> IO a
-runExtractor basePath = flip evalStateT st . unExtractor
+runExtractor :: ExtractOptions -> FilePath -> Extractor a -> IO a
+runExtractor opts basePath = flip evalStateT st . unExtractor
     where
         st = ExtractorState {
             entryBasePath = basePath,
-            nextEntryId = 0 }
+            nextEntryId = 0,
+            options = opts }
 
 
 data Entry = Entry {
@@ -75,6 +82,9 @@ tellEntry :: Entry -> String -> Extractor ()
 tellEntry entry str = Extractor $ do
     liftIO $ hPutStr (entryHandle entry) str
 
+
+getOptions :: Extractor ExtractOptions
+getOptions = Extractor $ gets options
 
 
 
