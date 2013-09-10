@@ -100,8 +100,8 @@ blockify' :: [(Index, Index)] -> [(Index, SyntaxToken Hoops)] -> [Tokens]
 blockify' idxs toks = case idxs of
     [] -> [free toks]
     (leftIdx, rightIdx) : idxs' -> let
-        (beforeLeftBrace, afterLeftBrace) = split leftIdx toks
-        (betweenBraces, afterRightBrace) = split (rightIdx - 1) afterLeftBrace
+        (beforeLeftBrace, afterLeftBrace) = split (leftIdx - 1) toks
+        (betweenBraces, afterRightBrace) = split rightIdx afterLeftBrace
         in free beforeLeftBrace : block betweenBraces : blockify' idxs' afterRightBrace
     where
         split idx = span ((<= idx) . fst)
