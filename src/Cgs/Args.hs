@@ -1,14 +1,18 @@
+{-# LANGUAGE ViewPatterns #-}
+
 module Cgs.Args (
     CgsOptions(..),
-    parseArgs,
-    parseArgsIO
+    runParseArgs,
+    runParseArgsIO
 ) where
 
 
+import Control.Exception (assert)
 import Control.Monad.Identity (Identity(Identity))
-import Data.Char (isDigit)
+import Data.Char (isDigit, isAlphaNum)
 import Data.Function (on)
-import Data.List (groupBy, sortBy)
+import Data.List (groupBy, sortBy, isPrefixOf, stripPrefix)
+import Data.Maybe (isJust)
 import System.Environment (getArgs)
 import System.FilePath (takeBaseName)
 import Text.Parsec hiding (satisfy)
@@ -18,7 +22,8 @@ import Transform.Extract (ExtractOptions(..))
 data CgsOptions a = CgsOptions {
     cgsFiles :: a [FilePath],
     cgsChunkSize :: Int,
-    cgsExtractOpts :: ExtractOptions }
+    cgsExtractOpts :: ExtractOptions
+}
 
 
 type Parser a = Parsec [String] (CgsOptions Maybe) a
@@ -35,8 +40,8 @@ collapse CgsOptions {
 collapse _ = Nothing
 
 
-parseArgsIO :: IO (Either ParseError (CgsOptions Identity))
-parseArgsIO = fmap runParseArgs getArgs
+runParseArgsIO :: IO (Either ParseError (CgsOptions Identity))
+runParseArgsIO = fmap runParseArgs getArgs
 
 
 runParseArgs :: [String] -> Either ParseError (CgsOptions Identity)
@@ -62,7 +67,28 @@ parseArgs = do
 
 
 parseTaggedOpts :: Parser ()
-parseTaggedOpts = return ()
+parseTaggedOpts = do
+    res <- parseTaggedOpt
+    case res of
+        DoesNotExist -> return ()
+        Exists -> parseTaggedOpts
+
+
+parseTaggedOpt :: Parser Existence
+parseTaggedOpt = parseChunkSize
+
+
+parseChunkSize :: Parser Existence
+parseChunkSize = optionalArg HasAssign "--chunk-size" $ \val -> do
+    case tryReadInt val of
+        Nothing -> failure
+        Just size -> if size > 0
+            then do
+                modifyState $ \st -> st { cgsChunkSize = size }
+                return ()
+            else failure
+    where
+        failure = parserFail "Invalid --chunk-size value"
 
 
 parseUntaggedOpts :: Parser ()
@@ -72,6 +98,10 @@ parseUntaggedOpts = parseFiles
 parseFiles :: Parser ()
 parseFiles = do
     files <- many1 anyArg <?> "Missing input files"
+    let unknownOpts = filter ("-" `isPrefixOf`) files
+    case unknownOpts of
+        opt : _ -> parserFail $ "Unknown option: " ++ opt
+        [] -> return ()
     let files' = sortBy (humanOrdering `on` takeBaseName) files
     modifyState $ \st -> st { cgsFiles = Just files' }
 
@@ -116,9 +146,50 @@ satisfy f = tokenPrim showArg nextPos testArg
         nextPos pos arg _ = updatePosArg pos arg
 
 
+tryRead :: (Read a) => String -> Maybe a
+tryRead s = case reads s of
+    [(x, "")] -> Just x
+    _ -> Nothing
+
+
+tryReadInt :: String -> Maybe Int
+tryReadInt s = case tryRead s :: Maybe Integer of
+    Nothing -> Nothing
+    Just n -> if fromIntegral (minBound :: Int) <= n && n <= fromIntegral (maxBound :: Int)
+        then Just $ fromInteger n
+        else Nothing
+
+
 anyArg :: Parser String
 anyArg = satisfy $ const True
 
+
+optionBool :: Parser a -> Parser Bool
+optionBool = fmap isJust . optionMaybe
+
+
+data ArgKind = HasAssign
+data Success = Success | Failure
+data Existence = Exists | DoesNotExist
+
+
+spanOption :: String -> Maybe (String, String)
+spanOption str = case span p str of
+    res @ ('-' : _, _) -> Just res
+    _ -> Nothing
+    where
+        p x = isAlphaNum x || x == '-'
+
+
+optionalArg :: ArgKind -> String -> (String -> Parser ()) -> Parser Existence
+optionalArg kind name f = do
+    mStr <- optionMaybe $ satisfy ((== Just name) . fmap fst . spanOption)
+    case mStr of
+        Just (spanOption -> Just (_, suffix)) -> case kind of
+            HasAssign -> case suffix of
+                '=' : value -> f value >> return Exists
+                _ -> parserFail $ "Expected `=' after " ++ name
+        _ -> return DoesNotExist
 
 
 

@@ -31,7 +31,8 @@ type EntryId = Int
 
 
 data ExtractOptions = ExtractOptions {
-    minStmtRequirement :: Int }
+    minStmtRequirement :: Int
+} deriving (Show)
 
 
 data ExtractorState = ExtractorState {

@@ -5,7 +5,7 @@ module Cgs (
 ) where
 
 
-import Cgs.Args (parseArgsIO, CgsOptions(..))
+import Cgs.Args (runParseArgsIO, CgsOptions(..))
 import Control.Exception (assert)
 import Control.Monad ((<=<))
 import Control.Monad.Identity (runIdentity)
@@ -20,6 +20,7 @@ import Language.Cpp.Pretty (pretty)
 import System.Directory (getCurrentDirectory, createDirectoryIfMissing)
 import System.Exit (exitFailure)
 import System.FilePath ((</>))
+import System.IO (stderr, hPutStrLn)
 import Text.Indent (indent, IndentMode(DropOldTabs), Tagged, CodeGen)
 import Text.Parsec (ParseError)
 import Transform.Expand (expand)
@@ -31,7 +32,7 @@ import Transform.Nop (removeNopPairs, removeUnusedDefines)
 
 main :: IO ()
 main = do
-    mCgsOpts <- parseArgsIO
+    mCgsOpts <- runParseArgsIO
     case mCgsOpts of
         Left err -> badArgs err
         Right cgsOpts -> do
@@ -46,7 +47,7 @@ main = do
 
 
 badArgs :: ParseError -> IO ()
-badArgs _ = putStrLn "Could not parse command line arguments"
+badArgs err = hPutStrLn stderr $ show err
 
 
 compileTranslationUnit :: Int -> [SyntaxToken Hoops] -> [SyntaxToken Hoops]
