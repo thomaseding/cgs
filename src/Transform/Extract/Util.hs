@@ -35,10 +35,9 @@ module Transform.Extract.Util (
 ) where
 
 
-import Control.Monad (when)
-import Control.Monad.State.Lazy (MonadState, StateT, runStateT, modify, gets, get, evalState)
+import Control.Monad.State.Lazy (MonadState, StateT, runStateT, modify, gets)
 import Control.Monad.Trans (MonadTrans(..))
-import Data.List (intersperse)
+import Data.List (intercalate)
 import Hoops.SyntaxToken
 import Prelude hiding (lookup)
 import Transform.Extract.Common (Extractor)
@@ -54,40 +53,22 @@ mkStmt :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
 mkStmt expr = expr ++ [p ";"]
 
 
-balancedIntersperse :: Eq a => ([a], [a]) -> a -> [a] -> [a]
-balancedIntersperse (ls, rs) sep xs = case xs of
-    [] -> []
-    _ -> tail $ concat $ flip evalState 0 $ mapM f xs
-    where
-        f x = do
-            balance <- get
-            when (x `elem` ls) $ modify (+ 1)
-            when (x `elem` rs) $ modify $ subtract 1
-            if balance == 0
-                then return [sep, x]
-                else return [x]
-            
-
-
-callFunc :: String -> [SyntaxToken Hoops] -> [SyntaxToken Hoops]
+callFunc :: String -> [[SyntaxToken Hoops]] -> [SyntaxToken Hoops]
 callFunc name args = i name : p "(" : sepArgs ++ [p ")"]
     where
-        ls = [i "LOOKUP"]
-        rs = [p ")"]
-        sep = p ","
-        sepArgs = balancedIntersperse (ls, rs) sep args
+        sepArgs = intercalate [p ","] args
 
 
-callCgsFunc :: String -> [SyntaxToken Hoops] -> [SyntaxToken Hoops]
+callCgsFunc :: String -> [[SyntaxToken Hoops]] -> [SyntaxToken Hoops]
 callCgsFunc name = callFunc ("CGS_" ++ name)
 
 
 lookup :: Key -> [SyntaxToken Hoops]
-lookup key = callFunc "LOOKUP" [Ext $ Key key]
+lookup key = callFunc "LOOKUP" [[Ext $ Key key]]
 
 
 define :: Key -> [SyntaxToken Hoops] -> [SyntaxToken Hoops]
-define key expr = i "DEFINE" : p "(" : expr ++ [p ",", Ext $ Key key, p ")"]
+define key expr = callFunc "DEFINE" [expr, [Ext $ Key key]]
 
 
 tryDefine :: Maybe Key -> [SyntaxToken Hoops] -> [SyntaxToken Hoops]
@@ -98,12 +79,12 @@ tryDefine mKey expr = case mKey of
 
 cgsMsetVertexNormals :: FilePath -> Key -> Integer -> Integer -> [SyntaxToken Hoops]
 cgsMsetVertexNormals path key offset count = mkStmt
-    $ callCgsFunc "MSet_Vertex_Normals" $ lookup key ++ [Integer offset, Integer count]
+    $ callCgsFunc "MSet_Vertex_Normals" [lookup key, [Integer offset], [Integer count], [s path]]
 
 
 cgsReadMetafile :: FilePath -> Maybe Key -> [SyntaxToken Hoops]
 cgsReadMetafile path mKey = mkStmt
-    $ tryDefine mKey $ callCgsFunc "Read_Metafile" [s path]
+    $ tryDefine mKey $ callCgsFunc "Read_Metafile" [[s path]]
 
 
 double :: SyntaxToken Hoops -> Maybe Double
