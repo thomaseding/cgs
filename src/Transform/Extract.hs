@@ -15,6 +15,7 @@ import Transform.Extract.Common
 import qualified Transform.Extract.Camera
 import qualified Transform.Extract.Glyph
 import qualified Transform.Extract.Shell
+import qualified Transform.Extract.VertexNormals
 
 
 type Index = Integer
@@ -30,7 +31,8 @@ extractors :: [BlockKind -> ExtractFunc]
 extractors = [
     Transform.Extract.Camera.extractor,
     Transform.Extract.Glyph.extractor,
-    Transform.Extract.Shell.extractor ]
+    Transform.Extract.Shell.extractor,
+    Transform.Extract.VertexNormals.extractor ]
 
 
 extract :: ExtractOptions -> FilePath -> [SyntaxToken Hoops] -> IO [SyntaxToken Hoops]
