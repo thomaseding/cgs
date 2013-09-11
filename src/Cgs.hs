@@ -9,8 +9,8 @@ import Cgs.Args (parseArgsIO, CgsOptions(..))
 import Control.Exception (assert)
 import Control.Monad ((<=<))
 import Control.Monad.Identity (runIdentity)
-import Control.Monad.ListM (takeWhileM, groupByM)
-import Control.Monad.State.Lazy (evalState, modify, gets, get, put)
+import Control.Monad.ListM (takeWhileM)
+import Control.Monad.State.Lazy (evalState, modify, gets)
 import Data.List (isPrefixOf)
 import Data.Tagged (untag)
 import Hoops.Lex (runLexer)
@@ -82,9 +82,9 @@ chunkByM p (x:xs) = do
 
 
 chunkStmts :: Int -> [SyntaxToken Hoops] -> [[SyntaxToken Hoops]]
-chunkStmts chunkSize = flip evalState st . chunkByM chunker
+chunkStmts chunkSize = flip evalState baseSt . chunkByM chunker
     where
-        st = ChunkState {
+        baseSt = ChunkState {
             consumedStmts = 0,
             braceBalance = 0 }
         chunker token = do
@@ -170,7 +170,7 @@ extractMainContent = let
 
 
 extractBody :: [SyntaxToken Hoops] -> [SyntaxToken Hoops]
-extractBody = flip evalState 0 . takeWhileM f
+extractBody = flip evalState (0 :: Int) . takeWhileM f
     where
         f token = case token of
             Punctuation (unpunc -> sym) -> case sym of

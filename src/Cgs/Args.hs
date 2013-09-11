@@ -6,7 +6,6 @@ module Cgs.Args (
 
 
 import Control.Monad.Identity (Identity(Identity))
-import Control.Monad.State (State, execState, modify)
 import Data.Char (isDigit)
 import Data.Function (on)
 import Data.List (groupBy, sortBy)
@@ -114,7 +113,7 @@ satisfy f = tokenPrim showArg nextPos testArg
     where
         showArg = show
         testArg arg = if f arg then Just arg else Nothing
-        nextPos pos arg args = updatePosArg pos arg
+        nextPos pos arg _ = updatePosArg pos arg
 
 
 anyArg :: Parser String
