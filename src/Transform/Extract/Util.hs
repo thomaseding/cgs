@@ -4,7 +4,7 @@
 module Transform.Extract.Util (
     cgsReadMetafile,
     double,
-    Point,
+    Point(..),
     FaceIndex,
     PointsT,
     FacesT,
@@ -52,7 +52,8 @@ double tok = case tok of
     _ -> Nothing
 
 
-type Point = (Double, Double, Double)
+data Point = Point Double Double Double
+    deriving (Show)
 type FaceIndex = Integer
 
 

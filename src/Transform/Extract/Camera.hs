@@ -28,13 +28,13 @@ extract = let
     go :: Entry -> ExtractFunc
     go entry tokens = case tokens of
         (pos -> CapturesRest [double -> Just x, double -> Just y, double -> Just z] rest) -> do
-            tellEntry entry $ showPoint (x, y, z)
+            tellEntry entry $ showPoint $ Point x y z
             go entry rest
         (tar -> CapturesRest [double -> Just x, double -> Just y, double -> Just z] rest) -> do
-            tellEntry entry $ showPoint (x, y, z)
+            tellEntry entry $ showPoint $ Point x y z
             go entry rest
         (up -> CapturesRest [double -> Just x, double -> Just y, double -> Just z] rest) -> do
-            tellEntry entry $ showPoint (x, y, z)
+            tellEntry entry $ showPoint $ Point x y z
             go entry rest
         (fieldProj -> Captures [double -> Just w, double -> Just h, String proj]) -> do
             tellEntry entry $ "\n\t" ++ show w ++ "\n\t" ++ show h ++ "\n\t" ++ show proj ++ ")"
@@ -47,7 +47,7 @@ extract = let
 
 
 showPoint :: Point -> String
-showPoint (x, y, z) = "\n\t(" ++ unwords (map show [x, y, z]) ++ ")"
+showPoint (Point x y z) = "\n\t(" ++ unwords (map show [x, y, z]) ++ ")"
 
 
 

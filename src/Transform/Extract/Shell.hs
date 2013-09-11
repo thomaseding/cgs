@@ -24,7 +24,7 @@ extract = let
     define = match "DEFINE($!var($!args),$key);"
     in \tokens -> case tokens of
         (point -> CapturesRest [double -> Just x, double -> Just y, double -> Just z] rest) -> do
-            modifyPoints ((x, y, z) :)
+            modifyPoints (Point x y z :)
             extract rest
         (list -> CapturesRest [Integer idx] rest) -> do
             modifyFaces $ (idx :)
@@ -43,7 +43,7 @@ extract = let
 toHmf :: [Point] -> [FaceIndex] -> String
 toHmf ps fs = "(Shell (" ++ showPoints ps ++ ")\n\t(" ++ showFaces fs ++ ")"
     where
-        showPoint (x, y, z) = "\n\t(" ++ unwords (map show [x, y, z]) ++ ")"
+        showPoint (Point x y z) = "\n\t(" ++ unwords (map show [x, y, z]) ++ ")"
         showPoints = concatMap showPoint
         showFaces = unwords . map show
 
