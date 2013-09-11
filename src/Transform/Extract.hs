@@ -111,9 +111,15 @@ blockify' idxs toks = case idxs of
             in Block (blockKind ts') ts'
 
 
+isHoopsFunc :: String -> Bool
+isHoopsFunc name = case name of
+    'H' : 'C' : '_' : rest -> any isLower rest
+    _ -> False
+
+
 blockKind :: [SyntaxToken Hoops] -> Maybe BlockKind
 blockKind tokens = case tokens of
-    (Identifier name@('H':'C':'_':_:c:_)) : rest -> if isLower c
+    Identifier name : rest -> if isHoopsFunc name
         then Just name
         else blockKind rest
     _ : rest -> blockKind rest
