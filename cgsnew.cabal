@@ -14,9 +14,15 @@ maintainer:          thomas@techsoft3d.com
 build-type:          Simple
 cabal-version:       >=1.8
 
+
 executable cgsnew
-  main-is:              Main.hs
-  other-modules:       
+    main-is:            Main.hs
+
+    hs-source-dirs:     src
+
+    ghc-options:        -with-rtsopts=-K256m
+
+    other-modules:       
                         Cgs
                         Hoops.Lex
                         Hoops.Match
@@ -35,7 +41,8 @@ executable cgsnew
                         Transform.Nop
 
 
-  build-depends:        base ==4.*,
+    build-depends:        
+                        base ==4.*,
                         tagged ==0.7.*,
                         clexer ==0.1.*,
                         directory ==1.2.*,
@@ -46,4 +53,6 @@ executable cgsnew
                         dlist ==0.5.*,
                         parsec ==3.1.*,
                         monadlist ==0.0.*
-  hs-source-dirs:      src
+
+
+
