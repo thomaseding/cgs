@@ -15,7 +15,7 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 
-executable cgsnew
+executable cgs
     main-is:            Main.hs
 
     hs-source-dirs:     src
@@ -24,6 +24,7 @@ executable cgsnew
 
     other-modules:       
                         Cgs
+                        Cgs.Args
                         Hoops.Lex
                         Hoops.Match
                         Hoops.SegPath
@@ -36,6 +37,7 @@ executable cgsnew
                         Transform.Extract.Glyph
                         Transform.Extract.Shell
                         Transform.Extract.Util
+                        Transform.Extract.VertexNormals
                         Transform.Flatten
                         Transform.Merge
                         Transform.Nop
@@ -43,14 +45,14 @@ executable cgsnew
 
     build-depends:        
                         base ==4.*,
-                        tagged ==0.7.*,
+                        tagged ==0.8.*,
                         clexer ==0.1.*,
-                        directory ==1.2.*,
-                        filepath ==1.3.*,
+                        directory ==1.3.*,
+                        filepath ==1.4.*,
                         tabs ==0.1.*,
-                        mtl ==2.1.*,
+                        mtl ==2.2.*,
                         containers ==0.5.*,
-                        dlist ==0.5.*,
+                        dlist ==0.8.*,
                         parsec ==3.1.*,
                         monadlist ==0.0.*
 

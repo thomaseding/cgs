@@ -7,12 +7,10 @@ module Cgs.Args (
 ) where
 
 
-import Control.Exception (assert)
 import Control.Monad.Identity (Identity(Identity))
 import Data.Char (isDigit, isAlphaNum)
 import Data.Function (on)
-import Data.List (groupBy, sortBy, isPrefixOf, stripPrefix)
-import Data.Maybe (isJust)
+import Data.List (groupBy, sortBy, isPrefixOf)
 import System.Environment (getArgs)
 import System.FilePath (takeBaseName)
 import Text.Parsec hiding (satisfy)
@@ -164,12 +162,7 @@ anyArg :: Parser String
 anyArg = satisfy $ const True
 
 
-optionBool :: Parser a -> Parser Bool
-optionBool = fmap isJust . optionMaybe
-
-
 data ArgKind = HasAssign
-data Success = Success | Failure
 data Existence = Exists | DoesNotExist
 
 

@@ -150,7 +150,7 @@ type ListsExtractFunc phantom = [SyntaxToken Hoops] -> ListsExtractor phantom (M
 
 newtype ListsStateT phantom m a = ListsStateT {
     unListsStateT :: StateT (Lists phantom) m a
-} deriving (Functor, Monad, MonadTrans, MonadState (Lists phantom))
+} deriving (Functor, Applicative, Monad, MonadTrans, MonadState (Lists phantom))
 
 
 runListsExtractor :: ListsExtractor phantom a -> Extractor (a, Lists phantom)

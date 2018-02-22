@@ -44,7 +44,7 @@ data ExtractorState = ExtractorState {
 
 newtype Extractor a = Extractor {
     unExtractor :: StateT ExtractorState IO a
-} deriving (Functor, Monad)
+} deriving (Functor, Applicative, Monad)
 
 
 runExtractor :: ExtractOptions -> FilePath -> Extractor a -> IO a

@@ -10,7 +10,7 @@ import Control.Monad.Reader (ReaderT, runReaderT, local, ask)
 import Control.Monad.State.Lazy (State, evalState, modify, gets)
 import Data.List (nub, stripPrefix)
 import Data.Map (Map)
-import qualified Data.Map as Map (empty, insertWith', lookup)
+import qualified Data.Map as Map (empty, insertWith, lookup)
 import Data.Maybe (isJust, listToMaybe)
 import Hoops.Match
 import Hoops.SyntaxToken
@@ -209,7 +209,7 @@ handleRenumberKey :: Integer -> String -> Flattener [SyntaxToken Hoops]
 handleRenumberKey intKey scopeStr = do
     case mScope of
         Just scope -> modify $ \st -> let
-            f = Map.insertWith' (\new old -> nub $ new ++ old) key [scope]
+            f = Map.insertWith (\new old -> nub $ new ++ old) key [scope]
             in st { userKeys = f $ userKeys st  }
         Nothing -> return ()
     continue
